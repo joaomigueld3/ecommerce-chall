@@ -18,11 +18,11 @@ class Order extends Model {
           field: 'client_id',
           references: {
             model: 'Client',
-            key: 'id',
+            key: 'clientId',
           },
         },
         status: {
-          type: DataTypes.ENUM('Received', 'In Preparation', 'Dispatched', 'Delivered'),
+          type: DataTypes.ENUM('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled'),
           allowNull: false,
         },
         orderDate: {
@@ -47,8 +47,8 @@ class Order extends Model {
   }
 
   static associate(models) {
-    this.belongsTo(models.Client, { foreignKey: 'clientId', unique: true });
-    this.hasMany(models.OrderItem, { foreignKey: 'itemId' });
+    this.belongsTo(models.Client, { foreignKey: 'clientId' });
+    this.hasMany(models.OrderItem, { foreignKey: 'orderId' });
   }
 
   toDict() {

@@ -1,3 +1,4 @@
+import '../../../utils/bufferCompat.js';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { Op } from 'sequelize';

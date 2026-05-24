@@ -1,7 +1,7 @@
 import swaggerAutogen from 'swagger-autogen';
 
 const outputFile = './swagger-output.json';
-const routes = ['./adapters/secondary/routes/AllRoutes.js'];
+const routes = ['./adapters/secondary/routes/allRoutes.js'];
 
 const doc = {
   info: {

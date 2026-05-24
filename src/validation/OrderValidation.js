@@ -36,6 +36,26 @@ class OrderValidation {
     validateSchema('body', schema)(req, res, next);
   }
 
+  static checkoutOrderSchema(req, res, next) {
+    const schema = Joi.object().keys({
+      clientId: Joi.number().integer().positive().required(),
+      items: Joi.array().items(
+        Joi.object().keys({
+          productId: Joi.number().integer().positive().required(),
+          quantity: Joi.number().integer().min(1).required(),
+        }),
+      ).min(1).required(),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
+  static changeOrderStatusSchema(req, res, next) {
+    const schema = Joi.object().keys({
+      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled').required(),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
   static deleteOrderSchema(req, res, next) {
     const schema = Joi.object({
       orderId: Joi.number().integer().required(),
@@ -46,7 +66,7 @@ class OrderValidation {
   static getOrdersByFiltersSchema(req, res, next) {
     const schema = Joi.object({
       clientId: Joi.number().integer().positive(),
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered').allow(''),
+      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled').allow(''),
       startDate: Joi.date(),
       endDate: Joi.date(),
     });

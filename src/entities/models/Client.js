@@ -55,7 +55,7 @@ class Client extends Model {
 
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'userId', unique: true });
-    this.hasMany(models.Order, { foreignKey: 'orderId' });
+    this.hasMany(models.Order, { foreignKey: 'clientId' });
   }
 
   toDict() {

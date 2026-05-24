@@ -8,7 +8,11 @@
     "dev": "nodemon src/index.js",
     "lint": "eslint --cache \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\"",
-    "swagger": "node src/swagger.js"
+    "swagger": "node src/swagger.js",
+    "test": "node --test test/",
+    "test:unit": "node --test test/order-service.unit.test.js",
+    "test:contract": "node --test test/api-contract.test.js",
+    "test:e2e": "node --test test/order-workflow.test.js"
   },
   "keywords": [],
   "author": "",

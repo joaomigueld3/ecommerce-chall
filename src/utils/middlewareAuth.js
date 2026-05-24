@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 // middleware de autenticação
+import './bufferCompat.js';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import User from '../entities/models/User.js';

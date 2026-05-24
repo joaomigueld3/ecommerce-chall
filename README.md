@@ -55,3 +55,22 @@ npm run dev      # Start the backend server
 ## 📋 Order Management
 #### ✔ Customers can place orders
 #### ✔ Admins can update order statuses (In Preparation, Dispatched, Delivered)
+
+## 🖥 Frontend
+#### A Next.js frontend (login, products, cart, checkout, orders, product admin, profile) lives in [`frontend/`](frontend/README.md).
+```sh
+cd frontend
+npm install
+npm run dev   # http://localhost:3000 (expects the API on http://localhost:9095)
+```
+
+## 🧪 Tests
+```sh
+# backend (Node built-in test runner)
+npm run test:unit       # business rules, no database needed
+npm run test:contract   # API auth/validation contracts, no database needed
+npm run test:e2e        # full order workflow — requires PostgreSQL + migrations (docs/order-workflow.md)
+
+# frontend (Jest + React Testing Library)
+cd frontend && npm test
+```
