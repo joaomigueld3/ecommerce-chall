@@ -52,7 +52,7 @@ class User extends Model {
   }
 
   static associate(models) {
-    this.hasOne(models.Client, { foreignKey: 'clientId', unique: true });
+    this.hasOne(models.Client, { foreignKey: 'userId' });
   }
 
   toDict() {

@@ -16,6 +16,63 @@ class OrderController {
     }
   }
 
+  async checkout(req, res) {
+    try {
+      const { clientId, items } = req.body;
+      const idempotencyKey = req.headers['idempotency-key'] || null;
+      const result = await this.orderService.checkout({ clientId, items }, idempotencyKey);
+      const statusCode = result.replayed ? 200 : 201;
+      const message = result.replayed ? 'Checkout already processed for this Idempotency-Key.' : 'Checkout completed';
+      return res.status(statusCode).json({ message, idempotentReplay: result.replayed, ...result.response });
+    } catch (e) {
+      return errorHandler(e, res);
+    }
+  }
+
+  async updateOrderStatus(req, res) {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+      const result = await this.orderService.changeStatus(orderId, status);
+      return res.status(200).json({
+        message: 'Order status updated successfully.',
+        orderId: result.order.orderId,
+        previousStatus: result.previousStatus,
+        status: result.order.status,
+        ...(result.restoredStock ? { restoredStock: result.restoredStock } : {}),
+      });
+    } catch (e) {
+      return errorHandler(e, res);
+    }
+  }
+
+  async cancelOrder(req, res) {
+    try {
+      const { orderId } = req.params;
+      const result = await this.orderService.cancelOrder(orderId);
+      return res.status(200).json({
+        message: 'Order cancelled successfully.',
+        orderId: result.order.orderId,
+        previousStatus: result.previousStatus,
+        status: result.order.status,
+        total: result.order.total,
+        restoredStock: result.restoredStock,
+      });
+    } catch (e) {
+      return errorHandler(e, res);
+    }
+  }
+
+  async getOrderSummary(req, res) {
+    try {
+      const { orderId } = req.params;
+      const summary = await this.orderService.getOrderSummary(orderId);
+      return res.status(200).json(summary);
+    } catch (e) {
+      return errorHandler(e, res);
+    }
+  }
+
   async getAllOrders(req, res) {
     try {
       const orders = await this.orderService.getAllOrders();

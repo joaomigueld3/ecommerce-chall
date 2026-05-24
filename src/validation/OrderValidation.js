@@ -19,6 +19,33 @@ class OrderValidation {
     validateSchema('params', schema)(req, res, next);
   }
 
+  static checkoutValidation(req, res, next) {
+    const schema = Joi.object().keys({
+      clientId: Joi.number().integer().positive().required(),
+      items: Joi.array().items(
+        Joi.object().keys({
+          productId: Joi.number().integer().positive().required(),
+          quantity: Joi.number().integer().positive().required(),
+        }),
+      ).min(1).required(),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
+  static patchOrderStatusSchema(req, res, next) {
+    const schema = Joi.object().keys({
+      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled').required(),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
+  static orderIdParamSchema(req, res, next) {
+    const schema = Joi.object({
+      orderId: Joi.number().integer().positive().required(),
+    });
+    validateSchema('params', schema)(req, res, next);
+  }
+
   static updateOrderSchema(req, res, next) {
     const schema = Joi.object().keys({
       clientId: Joi.number().integer(),

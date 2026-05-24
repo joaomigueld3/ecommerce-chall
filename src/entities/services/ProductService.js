@@ -27,16 +27,18 @@ class ProductService {
     return this.productRepository.findByFilters(filters);
   }
 
-  async updateProductQuantity(productId, quantityChange) {
+  async updateProductQuantity(productId, quantityChange, transaction = null) {
     const product = await this.productRepository.findById(productId);
 
     if (!product) {
       throw new Error('Product not found.');
     }
 
-    const newQuantity = product.quantityInStock + quantityChange;
-
-    await this.productRepository.update(productId, { quantityInStock: newQuantity });
+    if (quantityChange < 0) {
+      return this.productRepository.decrementStockGuarded(productId, -quantityChange, transaction);
+    }
+    await this.productRepository.incrementStock(productId, quantityChange, transaction);
+    return true;
   }
 }
 

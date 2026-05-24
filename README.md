@@ -37,6 +37,13 @@ npm run swagger  # Start API documentation
 npm run dev      # Start the backend server
 ```
 
+### 5️⃣ Run the Tests
+```sh
+npm test             # backend unit + route-contract tests (node --test, no DB needed)
+npm run verify:orders  # full order-lifecycle verification (needs the DB and the API running)
+cd frontend && npm test  # frontend Jest + React Testing Library suite
+```
+
 ## 🛠 Features
 🔐 Authentication
 #### Login, signup, and refresh-token routes do not require authentication.
@@ -55,3 +62,12 @@ npm run dev      # Start the backend server
 ## 📋 Order Management
 #### ✔ Customers can place orders
 #### ✔ Admins can update order statuses (In Preparation, Dispatched, Delivered)
+
+## 🖥 Frontend
+A minimal Next.js storefront (login, products, cart, checkout) lives in [`frontend/`](frontend/README.md).
+```sh
+cd frontend
+npm install
+cp .env.local.example .env.local   # points at http://localhost:9095/api
+npm run dev                        # http://localhost:3001
+```

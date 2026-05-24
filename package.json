@@ -8,11 +8,16 @@
     "dev": "nodemon src/index.js",
     "lint": "eslint --cache \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\"",
-    "swagger": "node src/swagger.js"
+    "swagger": "node src/swagger.js",
+    "test": "node --test test/*.test.js",
+    "verify:orders": "node scripts/verify-order-lifecycle.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "overrides": {
+    "buffer-equal-constant-time": "file:./vendor/buffer-equal-constant-time"
+  },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

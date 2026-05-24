@@ -3,22 +3,29 @@ class OrderRepository {
     this.orderModel = orderModel;
   }
 
-  async findById(orderId) {
-    return this.orderModel.findByPk(orderId);
+  async findById(orderId, options = {}) {
+    return this.orderModel.findByPk(orderId, options);
+  }
+
+  async findByIdForUpdate(orderId, transaction) {
+    return this.orderModel.findByPk(orderId, {
+      lock: transaction.LOCK.UPDATE,
+      transaction,
+    });
   }
 
   async findAll() {
     return this.orderModel.findAll();
   }
 
-  async create(orderData) {
-    return this.orderModel.create(orderData);
+  async create(orderData, options = {}) {
+    return this.orderModel.create(orderData, options);
   }
 
-  async update(orderId, updateOrderData) {
-    const order = await this.findById(orderId);
+  async update(orderId, updateOrderData, options = {}) {
+    const order = await this.findById(orderId, options);
     if (order) {
-      return order.update(updateOrderData);
+      return order.update(updateOrderData, options);
     }
     return null;
   }

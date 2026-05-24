@@ -1,0 +1,7 @@
+{
+  "name": "buffer-equal-constant-time",
+  "version": "1.0.1",
+  "description": "Constant-time comparison of Buffers. Local override: identical API to the npm package, but compatible with Node >= 22 where SlowBuffer was removed.",
+  "main": "index.js",
+  "license": "BSD-3-Clause"
+}
