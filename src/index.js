@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
-import allRoutes from './adapters/secondary/routes/AllRoutes.js';
-import swaggerDocument from './swagger-output.json' assert { type: 'json' };
+import allRoutes from './adapters/secondary/routes/allRoutes.js';
+import swaggerDocument from './swagger-output.json' with { type: 'json' };
 
 dotenv.config({ path: '.env' });
 

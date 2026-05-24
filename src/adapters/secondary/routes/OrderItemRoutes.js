@@ -7,6 +7,7 @@ import Product from '../../../entities/models/Product.js';
 import ProductService from '../../../entities/services/ProductService.js';
 import ProductRepository from '../../../entities/repositories/ProductRepository.js';
 import OrderItemValidation from '../../../validation/OrderItemValidation.js';
+import connection from '../../../database/index.js';
 
 const orderItemRouter = express.Router();
 
@@ -14,7 +15,7 @@ const productRepository = new ProductRepository(Product);
 const productService = new ProductService(productRepository);
 
 const orderItemRepository = new OrderItemRepository(OrderItem);
-const orderItemService = new OrderItemService(orderItemRepository, productService);
+const orderItemService = new OrderItemService(orderItemRepository, productService, connection);
 const orderItemController = new OrderItemController(orderItemService);
 
 orderItemRouter.get('/', orderItemController.getAllOrderItems.bind(orderItemController));
