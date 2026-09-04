@@ -89,9 +89,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "id": {
-                  "example": "any"
-                },
                 "email": {
                   "example": "any"
                 }
@@ -734,6 +731,6 @@
     }
   ],
   "apis": [
-    "./adapters/secondary/routes/AllRoutes.js"
+    "./adapters/secondary/routes/allRoutes.js"
   ]
 }

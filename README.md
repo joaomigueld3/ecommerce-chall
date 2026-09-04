@@ -37,6 +37,10 @@ npm run swagger  # Start API documentation
 npm run dev      # Start the backend server
 ```
 
+## Endpoints
+localhost:3000/api
+localhost:3000/api-docs
+
 ## 🛠 Features
 🔐 Authentication
 #### Login, signup, and refresh-token routes do not require authentication.
