@@ -1,10 +1,7 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 import { Op } from 'sequelize';
 import { errorHandlerCustom, errorHandler } from '../../../utils/errorHandler.js';
 import transporter from '../../../utils/transporter.js';
-
-dotenv.config({ path: '.env' });
 
 const secretKey = process.env.JWT_SECRET;
 const secretKeyRefresh = process.env.JWT_SECRET_REFRESH;

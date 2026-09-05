@@ -48,7 +48,7 @@ class Order extends Model {
 
   static associate(models) {
     this.belongsTo(models.Client, { foreignKey: 'clientId', unique: true });
-    this.hasMany(models.OrderItem, { foreignKey: 'itemId' });
+    this.hasMany(models.OrderItem, { foreignKey: 'orderId' });
   }
 
   toDict() {

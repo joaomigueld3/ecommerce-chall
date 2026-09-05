@@ -1,4 +1,5 @@
 import express from 'express';
+import { authorize } from '../../../utils/authorize.js';
 import ClientRepository from '../../../entities/repositories/ClientRepository.js';
 import ClientService from '../../../entities/services/ClientService.js';
 import ClientController from '../../primary/controllers/ClientController.js';
@@ -10,6 +11,8 @@ const clientRouter = express.Router();
 const clientRepository = new ClientRepository(Client);
 const clientService = new ClientService(clientRepository);
 const clientController = new ClientController(clientService);
+
+clientRouter.use(authorize('Admin'));
 
 clientRouter.get('/', ClientValidation.getAllClientsSchema, clientController.getAllClients.bind(clientController));
 clientRouter.get('/:clientId', ClientValidation.getClientByIdSchema, clientController.getClientById.bind(clientController));

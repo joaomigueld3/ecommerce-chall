@@ -31,6 +31,6 @@ async function syncModels() {
   }
 }
 
-syncModels();
+export const ready = syncModels();
 
 export default connection;

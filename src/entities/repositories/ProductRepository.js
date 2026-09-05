@@ -7,18 +7,18 @@ class ProductRepository {
     return this.model.findAll();
   }
 
-  async findById(productId) {
-    return this.model.findByPk(productId);
+  async findById(productId, options = {}) {
+    return this.model.findByPk(productId, options);
   }
 
   async create(productData) {
     return this.model.create(productData);
   }
 
-  async update(productId, productData) {
-    const product = await this.findById(productId);
+  async update(productId, productData, options = {}) {
+    const product = await this.findById(productId, options);
     if (product) {
-      return product.update(productData);
+      return product.update(productData, options);
     }
     return null;
   }

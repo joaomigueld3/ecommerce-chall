@@ -35,4 +35,18 @@ function errorHandlerCustom(res, message, statusCode) {
   });
 }
 
-export { CustomError, errorHandler, errorHandlerCustom };
+// eslint-disable-next-line no-unused-vars
+function expressErrorHandler(err, req, res, next) {
+  return errorHandler(err, res);
+}
+
+function notFoundHandler(req, res) {
+  return res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found.`,
+  });
+}
+
+export {
+  CustomError, errorHandler, errorHandlerCustom, expressErrorHandler, notFoundHandler,
+};

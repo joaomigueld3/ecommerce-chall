@@ -1,7 +1,11 @@
+import { Transaction } from 'sequelize';
+import { CustomError } from '../../utils/errorHandler.js';
+
 class OrderItemService {
-  constructor(orderItemRepository, productService) {
+  constructor(orderItemRepository, productService, sequelize) {
     this.orderItemRepository = orderItemRepository;
     this.productService = productService;
+    this.sequelize = sequelize;
   }
 
   async getAllOrderItems() {
@@ -25,21 +29,29 @@ class OrderItemService {
   }
 
   async createOrderItem(orderId, productId, quantity, pricePerUnit) {
-    const product = await this.productService.getProductById(productId);
-    if (!product || product.quantityInStock < quantity) {
-      throw new Error('Product not found or Insufficient quantity in stock.');
-    }
+    return this.sequelize.transaction(async (transaction) => {
+      const product = await this.productService.getProductById(productId, {
+        transaction,
+        lock: Transaction.LOCK.UPDATE,
+      });
+      if (!product) {
+        throw new CustomError('Product not found.', 404);
+      }
+      if (product.quantityInStock < quantity) {
+        throw new CustomError('Insufficient quantity in stock.', 400);
+      }
 
-    const orderItem = await this.orderItemRepository.create({
-      orderId,
-      productId,
-      quantity,
-      pricePerUnit,
+      const orderItem = await this.orderItemRepository.create(
+        {
+          orderId, productId, quantity, pricePerUnit,
+        },
+        { transaction },
+      );
+
+      await this.productService.updateProductQuantity(productId, -quantity, { transaction });
+
+      return orderItem;
     });
-
-    await this.productService.updateProductQuantity(productId, -quantity);
-
-    return orderItem;
   }
 
   async getOrderItemsByFilters(filters) {

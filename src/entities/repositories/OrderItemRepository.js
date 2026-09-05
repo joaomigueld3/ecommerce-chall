@@ -11,12 +11,12 @@ class OrderItemRepository {
     return this.model.findByPk(itemId);
   }
 
-  async create(orderItemData) {
+  async create(orderItemData, options = {}) {
     const orderItemWithSubtotal = {
       ...orderItemData,
       subtotal: orderItemData.quantity * orderItemData.pricePerUnit,
     };
-    return this.model.create(orderItemWithSubtotal);
+    return this.model.create(orderItemWithSubtotal, options);
   }
 
   async update(itemId, orderItemData) {

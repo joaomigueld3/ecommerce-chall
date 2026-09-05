@@ -55,16 +55,10 @@ class User extends Model {
     this.hasOne(models.Client, { foreignKey: 'clientId', unique: true });
   }
 
-  toDict() {
-    return {
-      id: this.id,
-      name: this.name,
-      email: this.email,
-      type: this.type,
-      confirmed: this.confirmed,
-      createdAt: this.createdAt,
-      updatedAt: this.createdAt,
-    };
+  toJSON() {
+    const values = { ...this.get() };
+    delete values.password;
+    return values;
   }
 }
 
