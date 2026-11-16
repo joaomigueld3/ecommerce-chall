@@ -1,7 +1,7 @@
-# ecommerce-chall
+# Ecommerce Platform
 
 ## 📌 Overview  
-This is the backend for **Ecommerce-Chall**, providing authentication, user roles, and order management with a RESTful API.
+This is the backend for **Ecommerce Platform**, providing authentication, user roles, and order management with a RESTful API.
 
 ---
 

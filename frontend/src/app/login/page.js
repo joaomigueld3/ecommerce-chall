@@ -36,7 +36,7 @@ export default function LoginPage() {
   return (
     <section className="card narrow">
       <h1>Login</h1>
-      <p className="muted">Use a confirmed user of the ecommerce-chall API.</p>
+      <p className="muted">Use a confirmed user account to sign in.</p>
 
       {error && <p className="alert alert-error">{error}</p>}
 

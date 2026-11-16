@@ -18,7 +18,7 @@ export default function NavBar() {
   return (
     <header className="navbar">
       <Link href="/products" className="brand">
-        Ecommerce Chall
+        Ecommerce Store
       </Link>
       <nav className="nav-links">
         <Link href="/products">Products</Link>

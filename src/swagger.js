@@ -5,9 +5,9 @@ const routes = ['./adapters/secondary/routes/allRoutes.js'];
 
 const doc = {
   info: {
-    title: 'desafio-loomi',
+    title: 'ecommerce-api',
     version: '1.0.0',
-    description: 'Desafio Loomi - João Descendente',
+    description: 'E-commerce RESTful API Documentation',
   },
   host: 'localhost:9095',
   basePath: '/api',

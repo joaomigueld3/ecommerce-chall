@@ -1,6 +1,6 @@
-# Ecommerce Chall — Frontend
+# Ecommerce Store — Frontend
 
-Next.js (App Router) frontend for the `ecommerce-chall` Express API, covering the core user flows:
+Next.js (App Router) frontend for the Ecommerce Express API, covering the core user flows:
 login, product listing, cart, checkout and order tracking.
 
 ## Stack
