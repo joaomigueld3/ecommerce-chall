@@ -1,5 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
-// middleware de autenticação
 import './bufferCompat.js';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
@@ -7,65 +5,108 @@ import User from '../entities/models/User.js';
 
 dotenv.config({ path: '.env' });
 
-const secretKey = process.env.JWT_SECRET;
+const secretKey = process.env.JWT_SECRET || 'dev-jwt-secret';
+
+function normalizePath(req) {
+  const combined = `${req.baseUrl || ''}${req.path || ''}`;
+  const withoutTrailing = combined.replace(/\/+$/, '') || '/';
+  return withoutTrailing.startsWith('/api')
+    ? withoutTrailing.slice(4) || '/'
+    : withoutTrailing;
+}
+
+function isClientAllowed(req, userId) {
+  const { method } = req;
+  const path = normalizePath(req);
+
+  if (path === '/products' && method === 'GET') return true;
+  if (/^\/products\/\d+$/.test(path) && method === 'GET') return true;
+  if (path === '/products/filters' && method === 'POST') return true;
+
+  if (path === '/change-password' && method === 'PUT') return true;
+
+  const userMatch = path.match(/^\/users\/(\d+)$/);
+  if (userMatch && (method === 'GET' || method === 'PUT')) {
+    return Number(userMatch[1]) === Number(userId);
+  }
+
+  if (path === '/clients' && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/clients\/\d+$/.test(path) && (method === 'GET' || method === 'PUT')) return true;
+
+  if (path === '/orders' && (method === 'GET' || method === 'POST')) return true;
+  if (path === '/orders/checkout' && method === 'POST') return true;
+  if (path === '/orders/filters' && method === 'POST') return true;
+  if (/^\/orders\/\d+$/.test(path) && method === 'GET') return true;
+  if (/^\/orders\/\d+\/summary$/.test(path) && method === 'GET') return true;
+  if (/^\/orders\/\d+\/payment$/.test(path) && method === 'POST') return true;
+  if (/^\/orders\/\d+\/cancel$/.test(path) && method === 'POST') return true;
+
+  if (path === '/order-items' && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/order-items\/\d+$/.test(path) && method === 'GET') return true;
+
+  return false;
+}
 
 async function authenticateToken(req, res, next) {
   const { authorization } = req.headers;
 
   if (!authorization) {
-    res.status(400).json({ message: 'Missing authentication token.' });
-    return;
+    return res.status(400).json({ message: 'Missing authentication token.' });
   }
 
-  // const [, token] = authorization.split(' '); // separando o Bearer do token lá do headers do postman
-
-  let token;
-  if (authorization.startsWith('Bearer ')) token = authorization.slice(7);
-  else token = authorization;
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : authorization;
 
   try {
-    // eslint-disable-next-line consistent-return
-    jwt.verify(token, secretKey, async (err, decoded) => {
-      if (err) {
-        return res.status(401).json({ message: 'Invalid Token.' });
-      }
-      // Decodificou com sucesso o token, podemos armazenar o ID do usuário para uso posterior se necessário
-      req.id = decoded.id;
-      req.email = decoded.email;
-      req.type = decoded.type;
-      const { id } = req;
-      const verifyUser = await User.findByPk(id);
-      if (!verifyUser) {
-        return res.status(404).json({ message: 'User not found.' });
-      }
-      const user = {
-        id: req.id,
-        email: req.email,
-        type: req.type,
-      };
-      req.user = user;
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(token, secretKey, (err, payload) => {
+        if (err) reject(err);
+        else resolve(payload);
+      });
+    });
 
-      // Verificar o tipo do usuário antes de permitir o acesso
-      if (req.user.type === 'Client') {
-        // Adicione as rotas específicas que os usuários do tipo 'Client' podem acessar
-        if (
-          (req.originalUrl === '/signin' && req.method === 'POST')
-          || (req.originalUrl.startsWith('/users/') && req.method === 'PUT' && req.params.id === req.user.id.toString())
-          || (req.originalUrl === '/products' && req.method === 'GET')
-          || (req.originalUrl === '/orders' && req.method === 'POST')
-        ) {
-          // Acesso permitido para as rotas especificadas
-          return next();
-        }
+    const verifyUser = await User.findByPk(decoded.id);
+    if (!verifyUser) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
 
-        // Adicione outras verificações conforme necessário
-        return res.status(403).json({ message: 'Permission denied: User is type Client' });
-      }
-      next();
+    req.id = verifyUser.id;
+    req.email = verifyUser.email;
+    req.type = verifyUser.type;
+    req.user = {
+      id: verifyUser.id,
+      email: verifyUser.email,
+      type: verifyUser.type,
+    };
+
+    if (req.user.type === 'Admin') {
+      return next();
+    }
+
+    if (req.user.type === 'Client' && isClientAllowed(req, req.user.id)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Permission denied: User is type Client',
     });
   } catch (error) {
-    res.status(500).json({ message: `Token error: ${error.message}` });
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError' || error.name === 'NotBeforeError') {
+      return res.status(401).json({ message: 'Invalid Token.' });
+    }
+    return res.status(500).json({ message: `Token error: ${error.message}` });
   }
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.type !== 'Admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Permission denied: Admin access required.',
+    });
+  }
+  return next();
+}
+
 export default authenticateToken;
+export { requireAdmin };

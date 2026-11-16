@@ -9,6 +9,10 @@ class ClientService {
     return this.clientRepository.findById(clientId);
   }
 
+  async getClientByUserId(userId) {
+    return this.clientRepository.findByUserId(userId);
+  }
+
   async getClientByContact(contact) {
     return this.clientRepository.findByContact(contact);
   }
@@ -18,9 +22,14 @@ class ClientService {
   }
 
   async createClient(client) {
-    const { contact } = client;
+    const { contact, userId } = client;
     const verifyContact = await this.clientRepository.findByContact(contact);
     if (verifyContact) throw new CustomError('Contact already in use.', 400);
+
+    if (userId) {
+      const existingForUser = await this.clientRepository.findByUserId(userId);
+      if (existingForUser) throw new CustomError('User already has a client profile.', 400);
+    }
 
     return this.clientRepository.create(client);
   }
