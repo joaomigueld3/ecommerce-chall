@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 
-export default function LoginPage() {
+function LoginFormContent() {
   const { login, isReady, isAuthenticated } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const confirmed = searchParams.get('confirmed') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,6 +41,9 @@ export default function LoginPage() {
       <h1>Login</h1>
       <p className="muted">Use a confirmed user account to sign in.</p>
 
+      {confirmed && (
+        <p className="alert alert-success">Email confirmed! You can now sign in.</p>
+      )}
       {error && <p className="alert alert-error">{error}</p>}
 
       <form onSubmit={handleSubmit} className="form">
@@ -66,10 +72,23 @@ export default function LoginPage() {
           />
         </label>
 
-        <button type="submit" className="btn" disabled={submitting}>
-          {submitting ? 'Signing in...' : 'Sign in'}
-        </button>
+        <div className="actions-row">
+          <button type="submit" className="btn" disabled={submitting}>
+            {submitting ? 'Signing in...' : 'Sign in'}
+          </button>
+          <Link href="/register" className="btn btn-secondary">
+            Create account
+          </Link>
+        </div>
       </form>
     </section>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<section className="card narrow"><h1>Login</h1></section>}>
+      <LoginFormContent />
+    </Suspense>
   );
 }

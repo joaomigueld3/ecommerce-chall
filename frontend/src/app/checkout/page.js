@@ -5,10 +5,17 @@ import Link from 'next/link';
 import RequireAuth from '@/features/auth/RequireAuth';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useCart } from '@/features/cart/CartContext';
-import { checkout } from '@/features/orders/api';
+import { checkout, processOrderPayment } from '@/features/orders/api';
 import { getClients } from '@/features/clients/api';
 import { formatPrice } from '@/lib/format';
 import EmptyState from '@/components/ui/EmptyState';
+
+function generateIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function CheckoutContent() {
   const { token, user } = useAuth();
@@ -18,10 +25,13 @@ function CheckoutContent() {
   const [clientsError, setClientsError] = useState(null);
   const [loadingClients, setLoadingClients] = useState(true);
   const [clientId, setClientId] = useState('');
+  const [idempotencyKey, setIdempotencyKey] = useState(generateIdempotencyKey);
 
   const [submitting, setSubmitting] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [paymentFeedback, setPaymentFeedback] = useState(null);
 
   useEffect(() => {
     let ignore = false;
@@ -65,9 +75,10 @@ function CheckoutContent() {
           quantity: item.quantity,
         })),
       };
-      const data = await checkout(token, payload);
+      const data = await checkout(token, payload, idempotencyKey);
       setResult(data);
       clearCart();
+      setIdempotencyKey(generateIdempotencyKey());
     } catch (err) {
       setError(err.message || 'Checkout failed.');
     } finally {
@@ -75,11 +86,33 @@ function CheckoutContent() {
     }
   }
 
+  async function handlePayment(action) {
+    if (!result?.order?.orderId) return;
+    setError(null);
+    setPaying(true);
+    try {
+      const paymentRes = await processOrderPayment(token, result.order.orderId, action);
+      setResult((current) => ({
+        ...current,
+        order: paymentRes.order,
+      }));
+      setPaymentFeedback(paymentRes.message);
+    } catch (err) {
+      setError(err.message || 'Payment simulation failed.');
+    } finally {
+      setPaying(false);
+    }
+  }
+
   if (result) {
+    const isPendingPayment = result.order?.status === 'Pending Payment';
+
     return (
       <section className="card narrow">
         <h1>Order placed</h1>
-        <p className="alert alert-success">{result.message || 'Checkout completed.'}</p>
+        <p className="alert alert-success">{paymentFeedback || result.message || 'Checkout completed.'}</p>
+        {error && <p className="alert alert-error">{error}</p>}
+
         <ul className="summary-list">
           <li>
             <strong>Order:</strong> #{result.order?.orderId}
@@ -94,8 +127,35 @@ function CheckoutContent() {
             <strong>Items:</strong> {result.items?.length ?? 0}
           </li>
         </ul>
+
+        {isPendingPayment && (
+          <div className="stack">
+            <p className="muted">
+              Simulate payment confirmation to debit stock and move the order to <strong>Received</strong>, or deny to cancel.
+            </p>
+            <div className="actions-row">
+              <button
+                type="button"
+                className="btn"
+                disabled={paying}
+                onClick={() => handlePayment('confirm')}
+              >
+                {paying ? 'Processing...' : 'Confirm payment'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={paying}
+                onClick={() => handlePayment('deny')}
+              >
+                Deny payment
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="actions-row">
-          <Link href={`/orders/${result.order?.orderId}`} className="btn">
+          <Link href={`/orders/${result.order?.orderId}`} className="btn btn-secondary">
             View order details
           </Link>
           <Link href="/products" className="btn btn-secondary">
@@ -145,44 +205,55 @@ function CheckoutContent() {
 
       {error && <p className="alert alert-error">{error}</p>}
 
-      <form onSubmit={handleSubmit} className="form">
-        <label htmlFor="clientId">
-          Client
-          {loadingClients && <span className="muted"> Loading clients...</span>}
-          {!loadingClients && !clientsError && clients.length > 0 && (
-            <select
-              id="clientId"
-              value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
-              required
-            >
-              {clients.map((client) => (
-                <option key={client.clientId} value={client.clientId}>
-                  #{client.clientId} — {client.fullName}
-                </option>
-              ))}
-            </select>
-          )}
-          {!loadingClients && (clientsError || clients.length === 0) && (
-            <>
-              {clientsError && <span className="alert alert-error">{clientsError}</span>}
-              <input
+      {!loadingClients && !clientsError && clients.length === 0 ? (
+        <div className="stack">
+          <p className="alert alert-error">
+            You do not have a Client profile linked to your account yet.
+          </p>
+          <Link href="/profile" className="btn">
+            Complete Client Profile
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="form">
+          <label htmlFor="clientId">
+            Client
+            {loadingClients && <span className="muted"> Loading clients...</span>}
+            {!loadingClients && !clientsError && clients.length > 0 && (
+              <select
                 id="clientId"
-                type="number"
-                min={1}
-                placeholder="Client ID"
                 value={clientId}
                 onChange={(event) => setClientId(event.target.value)}
                 required
-              />
-            </>
-          )}
-        </label>
+              >
+                {clients.map((client) => (
+                  <option key={client.clientId} value={client.clientId}>
+                    #{client.clientId} — {client.fullName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!loadingClients && clientsError && (
+              <>
+                <span className="alert alert-error">{clientsError}</span>
+                <input
+                  id="clientId"
+                  type="number"
+                  min={1}
+                  placeholder="Client ID"
+                  value={clientId}
+                  onChange={(event) => setClientId(event.target.value)}
+                  required
+                />
+              </>
+            )}
+          </label>
 
-        <button type="submit" className="btn" disabled={submitting || !clientId}>
-          {submitting ? 'Placing order...' : 'Place order'}
-        </button>
-      </form>
+          <button type="submit" className="btn" disabled={submitting || !clientId}>
+            {submitting ? 'Placing order...' : 'Place order'}
+          </button>
+        </form>
+      )}
     </section>
   );
 }

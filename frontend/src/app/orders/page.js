@@ -11,21 +11,41 @@ import Loading from '@/components/ui/Loading';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import EmptyState from '@/components/ui/EmptyState';
 
+const ORDER_STATUS_OPTIONS = [
+  'Pending Payment',
+  'Received',
+  'In Preparation',
+  'Dispatched',
+  'Delivered',
+  'Cancelled',
+];
+
+const EMPTY_FILTERS = {
+  status: '',
+  clientId: '',
+  startDate: '',
+  endDate: '',
+};
+
 function OrdersContent() {
-  const { token, logout } = useAuth();
+  const { token, isAdmin, logout } = useAuth();
   const router = useRouter();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState(null);
 
   useEffect(() => {
     let ignore = false;
 
     async function load() {
       try {
-        const data = await getOrders(token);
+        const data = appliedFilters
+          ? await getOrders(token, appliedFilters)
+          : await getOrders(token);
         if (ignore) return;
         const allOrders = data?.allOrders ?? [];
         setOrders([...allOrders].sort((a, b) => b.orderId - a.orderId));
@@ -47,12 +67,30 @@ function OrdersContent() {
     return () => {
       ignore = true;
     };
-  }, [token, reloadKey, logout, router]);
+  }, [token, reloadKey, appliedFilters, logout, router]);
 
   function handleRetry() {
     setLoading(true);
     setError(null);
     setReloadKey((key) => key + 1);
+  }
+
+  function handleApplyFilters(event) {
+    event.preventDefault();
+    const next = {};
+    if (filters.status) next.status = filters.status;
+    if (isAdmin && filters.clientId) next.clientId = filters.clientId;
+    if (filters.startDate) next.startDate = `${filters.startDate}T00:00:00.000Z`;
+    if (filters.endDate) next.endDate = `${filters.endDate}T23:59:59.999Z`;
+
+    setLoading(true);
+    setAppliedFilters(Object.keys(next).length > 0 ? next : null);
+  }
+
+  function handleClearFilters() {
+    setFilters(EMPTY_FILTERS);
+    setLoading(true);
+    setAppliedFilters(null);
   }
 
   if (loading) {
@@ -72,9 +110,71 @@ function OrdersContent() {
         </Link>
       </div>
 
+      <form onSubmit={handleApplyFilters} className="filters-bar">
+        <label htmlFor="order-status">
+          Status
+          <select
+            id="order-status"
+            value={filters.status}
+            onChange={(event) => setFilters((c) => ({ ...c, status: event.target.value }))}
+          >
+            <option value="">All statuses</option>
+            {ORDER_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {isAdmin && (
+          <label htmlFor="order-client-id">
+            Client ID
+            <input
+              id="order-client-id"
+              type="number"
+              min="1"
+              value={filters.clientId}
+              onChange={(event) => setFilters((c) => ({ ...c, clientId: event.target.value }))}
+            />
+          </label>
+        )}
+
+        <label htmlFor="order-start-date">
+          Start date
+          <input
+            id="order-start-date"
+            type="date"
+            value={filters.startDate}
+            onChange={(event) => setFilters((c) => ({ ...c, startDate: event.target.value }))}
+          />
+        </label>
+
+        <label htmlFor="order-end-date">
+          End date
+          <input
+            id="order-end-date"
+            type="date"
+            value={filters.endDate}
+            onChange={(event) => setFilters((c) => ({ ...c, endDate: event.target.value }))}
+          />
+        </label>
+
+        <div className="actions-row">
+          <button type="submit" className="btn">
+            Filter
+          </button>
+          {appliedFilters && (
+            <button type="button" className="btn btn-secondary" onClick={handleClearFilters}>
+              Clear
+            </button>
+          )}
+        </div>
+      </form>
+
       {orders.length === 0 ? (
         <EmptyState
-          message="No orders yet."
+          message={appliedFilters ? 'No orders match these filters.' : 'No orders yet.'}
           actionHref="/products"
           actionLabel="Place your first order"
         />
@@ -83,6 +183,7 @@ function OrdersContent() {
           <thead>
             <tr>
               <th>Order</th>
+              <th>Client</th>
               <th>Status</th>
               <th>Date</th>
               <th>Total</th>
@@ -93,6 +194,7 @@ function OrdersContent() {
             {orders.map((order) => (
               <tr key={order.orderId}>
                 <td>#{order.orderId}</td>
+                <td>#{order.clientId}</td>
                 <td>{order.status}</td>
                 <td>{formatDate(order.orderDate)}</td>
                 <td>$ {formatPrice(order.total)}</td>

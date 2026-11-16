@@ -5,21 +5,38 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import RequireAuth from '@/features/auth/RequireAuth';
 import { useAuth } from '@/features/auth/AuthContext';
-import { getOrderSummary } from '@/features/orders/api';
+import {
+  cancelOrder,
+  deleteOrder,
+  getOrderSummary,
+  processOrderPayment,
+  updateOrderStatus,
+} from '@/features/orders/api';
 import { formatDate, formatPrice } from '@/lib/format';
 import Loading from '@/components/ui/Loading';
 import ErrorMessage from '@/components/ui/ErrorMessage';
 import EmptyState from '@/components/ui/EmptyState';
 
+const NEXT_STATUS_BY_CURRENT = {
+  Received: ['In Preparation'],
+  'In Preparation': ['Dispatched'],
+  Dispatched: ['Delivered'],
+};
+
+const CANCELLABLE_STATUSES = ['Pending Payment', 'Received', 'In Preparation'];
+
 function OrderDetailsContent() {
   const { orderId } = useParams();
-  const { token, logout } = useAuth();
+  const { token, isAdmin, logout } = useAuth();
   const router = useRouter();
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [actionMessage, setActionMessage] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -61,6 +78,36 @@ function OrderDetailsContent() {
     setReloadKey((key) => key + 1);
   }
 
+  async function runAction(fn) {
+    setActionError(null);
+    setActionMessage(null);
+    setBusy(true);
+    try {
+      const res = await fn();
+      setActionMessage(res?.message || 'Action completed.');
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setActionError(err.message || 'Action failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(`Delete order #${orderId}?`);
+    if (!confirmed) return;
+
+    setActionError(null);
+    setBusy(true);
+    try {
+      await deleteOrder(token, orderId);
+      router.push('/orders');
+    } catch (err) {
+      setActionError(err.message || 'Failed to delete order.');
+      setBusy(false);
+    }
+  }
+
   if (loading) {
     return <Loading message="Loading order..." />;
   }
@@ -83,15 +130,21 @@ function OrderDetailsContent() {
   }
 
   const { order, items, recomputedTotal, persistedTotal, consistent, warning } = summary;
+  const isPendingPayment = order.status === 'Pending Payment';
+  const canCancel = CANCELLABLE_STATUSES.includes(order.status);
+  const nextStatuses = NEXT_STATUS_BY_CURRENT[order.status] ?? [];
 
   return (
-    <section>
+    <section className="stack">
       <div className="page-header">
         <h1>Order #{order.orderId}</h1>
         <Link href="/orders" className="btn btn-secondary">
           Back to orders
         </Link>
       </div>
+
+      {actionMessage && <p className="alert alert-success">{actionMessage}</p>}
+      {actionError && <p className="alert alert-error">{actionError}</p>}
 
       <div className="card">
         <ul className="summary-list">
@@ -108,6 +161,63 @@ function OrderDetailsContent() {
             <strong>Total:</strong> $ {formatPrice(persistedTotal ?? order.total)}
           </li>
         </ul>
+
+        <div className="actions-row">
+          {isPendingPayment && (
+            <>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => runAction(() => processOrderPayment(token, order.orderId, 'confirm'))}
+              >
+                Confirm payment
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={busy}
+                onClick={() => runAction(() => processOrderPayment(token, order.orderId, 'deny'))}
+              >
+                Deny payment
+              </button>
+            </>
+          )}
+
+          {isAdmin && nextStatuses.map((status) => (
+            <button
+              key={status}
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => runAction(() => updateOrderStatus(token, order.orderId, status))}
+            >
+              Move to {status}
+            </button>
+          ))}
+
+          {canCancel && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy}
+              onClick={() => runAction(() => cancelOrder(token, order.orderId))}
+            >
+              Cancel order
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              onClick={handleDelete}
+            >
+              Delete order
+            </button>
+          )}
+        </div>
       </div>
 
       <h2>Items</h2>

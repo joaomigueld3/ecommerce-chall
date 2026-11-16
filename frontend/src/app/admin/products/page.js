@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import RequireAuth from '@/features/auth/RequireAuth';
+import RequireRole from '@/features/auth/RequireRole';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createProduct, deleteProduct, getProducts, updateProduct } from '@/features/products/api';
 import { formatPrice } from '@/lib/format';
@@ -13,6 +13,7 @@ import EmptyState from '@/components/ui/EmptyState';
 const EMPTY_FORM = {
   productName: '',
   description: '',
+  category: 'General',
   price: '',
   quantityInStock: '',
 };
@@ -80,6 +81,7 @@ function ProductAdminContent() {
     setForm({
       productName: product.productName ?? '',
       description: product.description ?? '',
+      category: product.category ?? 'General',
       price: String(product.price ?? ''),
       quantityInStock: String(product.quantityInStock ?? ''),
     });
@@ -101,6 +103,7 @@ function ProductAdminContent() {
     try {
       const payload = {
         productName: form.productName.trim(),
+        category: form.category.trim() || 'General',
         price: Number(form.price),
         quantityInStock: Number(form.quantityInStock),
         ...(form.description.trim() ? { description: form.description.trim() } : {}),
@@ -166,6 +169,17 @@ function ProductAdminContent() {
             />
           </label>
 
+          <label htmlFor="category">
+            Category
+            <input
+              id="category"
+              type="text"
+              value={form.category}
+              onChange={(event) => setField('category', event.target.value)}
+              required
+            />
+          </label>
+
           <label htmlFor="description">
             Description (optional)
             <input
@@ -194,7 +208,7 @@ function ProductAdminContent() {
             <input
               id="quantityInStock"
               type="number"
-              min="1"
+              min="0"
               step="1"
               value={form.quantityInStock}
               onChange={(event) => setField('quantityInStock', event.target.value)}
@@ -227,6 +241,7 @@ function ProductAdminContent() {
             <tr>
               <th>Id</th>
               <th>Name</th>
+              <th>Category</th>
               <th>Price</th>
               <th>Stock</th>
               <th aria-label="Actions" />
@@ -237,6 +252,7 @@ function ProductAdminContent() {
               <tr key={product.productId}>
                 <td>#{product.productId}</td>
                 <td>{product.productName}</td>
+                <td>{product.category || 'General'}</td>
                 <td>$ {formatPrice(product.price)}</td>
                 <td>{product.quantityInStock}</td>
                 <td>
@@ -265,8 +281,8 @@ function ProductAdminContent() {
 
 export default function ProductAdminPage() {
   return (
-    <RequireAuth>
+    <RequireRole allowedRoles={['Admin']}>
       <ProductAdminContent />
-    </RequireAuth>
+    </RequireRole>
   );
 }
