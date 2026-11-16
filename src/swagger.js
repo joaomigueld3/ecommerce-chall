@@ -1,7 +1,7 @@
 import swaggerAutogen from 'swagger-autogen';
 
-const outputFile = './swagger-output.json';
-const routes = ['./adapters/secondary/routes/allRoutes.js'];
+const outputFile = './src/swagger-output.json';
+const routes = ['./src/adapters/secondary/routes/allRoutes.js'];
 
 const doc = {
   info: {
@@ -17,6 +17,7 @@ const doc = {
       type: 'apiKey',
       name: 'Authorization',
       in: 'header',
+      description: 'Bearer <JWT>',
     },
   },
   security: [
@@ -24,7 +25,6 @@ const doc = {
       Bearer: [],
     },
   ],
-  apis: routes,
 };
 
 swaggerAutogen()(outputFile, routes, doc);

@@ -4,9 +4,10 @@
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/orders/checkout` | Atomic multi-item checkout with server-side pricing. Optional `Idempotency-Key` header. |
+| `POST` | `/orders/checkout` | Atomic multi-item checkout with server-side pricing (`Pending Payment` status). Optional `Idempotency-Key` header. |
+| `POST` | `/orders/:orderId/payment` | Simulated payment (`{ action: "confirm" | "deny" }`): confirm locks & debits stock and moves to `Received`; deny cancels without debiting stock. |
 | `PATCH` | `/orders/:orderId/status` | Strict status transition (409 on anything not allowed). |
-| `POST` | `/orders/:orderId/cancel` | Transactional cancellation + full stock restoration. |
+| `POST` | `/orders/:orderId/cancel` | Transactional cancellation + stock restoration (only if stock was already debited). |
 | `GET` | `/orders/:orderId/summary` | Order + items + recomputed vs persisted total + consistency flag. |
 
 All pre-existing routes keep working; layering (route → controller → service → repository) is unchanged.

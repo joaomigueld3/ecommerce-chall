@@ -14,14 +14,20 @@ login, product listing, cart, checkout and order tracking.
 
 | Route | Description |
 | --- | --- |
-| `/login` | Email/password form; stores the JWT in `localStorage`. |
-| `/products` | Lists products from `GET /api/products`; add to cart. |
+| `/login` | Email/password form; stores JWT and refreshToken in `localStorage`. |
+| `/register` | Customer signup (`POST /api/signin`) with 1-click portfolio email confirmation. |
+| `/confirm-email/[token]` | Confirms account email via `GET /api/confirmation/:token`. |
+| `/products` | Lists products from `GET /api/products` with multi-filters (name, categories, price range, availability); add to cart. |
+| `/products/[productId]` | Product details (`GET /api/products/:productId`) with quantity selection. |
 | `/cart` | Shows selected items; change quantity (min 1) or remove. |
-| `/checkout` | Sends `POST /api/orders/checkout` with `{ clientId, items }`; shows success/failure; clears the cart on success; links to the created order. |
-| `/orders` | Lists orders from `GET /api/orders` (id, status, date, total) with loading/empty/error states. |
-| `/orders/[orderId]` | Order details from `GET /api/orders/:orderId/summary`: items, persisted vs recomputed totals, consistency warning, not-found handling. |
-| `/admin/products` | Product admin: create, edit and delete products (`POST/PUT/DELETE /api/products`), list refreshed after every mutation. |
-| `/profile` | Current user profile: loads `GET /api/users/:id` (id from the login payload) and updates name/email via `PUT /api/users/:id`. |
+| `/checkout` | Sends idempotent `POST /api/orders/checkout`, clears cart, and lets user simulate payment confirmation/denial. |
+| `/orders` | Lists orders from `GET /api/orders` with status, date, and Admin client filters. |
+| `/orders/[orderId]` | Order details (`GET /api/orders/:orderId/summary`), simulated payment, cancel, and Admin status progression. |
+| `/profile` | Current user profile (`GET/PUT /api/users/:id`), password change (`PUT /api/change-password`), and Client profile CRUD. |
+| `/admin/products` | Product admin (`Admin` role): create, edit, and delete products with category. |
+| `/admin/clients` | Clients admin (`Admin` role): CRUD + filters. |
+| `/admin/users` | Users admin (`Admin` role): CRUD + role/confirmation management + filters. |
+| `/admin/reports` | Sales reports (`Admin` role): generate SQL+CSV reports by period/filters and download `.csv`. |
 
 All pages except `/login` redirect unauthenticated users to `/login`.
 The home page `/` redirects to `/products`.
