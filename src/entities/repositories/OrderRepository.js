@@ -7,8 +7,8 @@ class OrderRepository {
     return this.orderModel.findByPk(orderId, options);
   }
 
-  async findAll() {
-    return this.orderModel.findAll();
+  async findAll(options = {}) {
+    return this.orderModel.findAll(options);
   }
 
   async create(orderData, options = {}) {

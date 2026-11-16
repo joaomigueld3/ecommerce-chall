@@ -3,6 +3,7 @@ import { UniqueConstraintError } from 'sequelize';
 import { CustomError } from '../../utils/errorHandler.js';
 
 const ORDER_STATUS = {
+  PENDING_PAYMENT: 'Pending Payment',
   RECEIVED: 'Received',
   IN_PREPARATION: 'In Preparation',
   DISPATCHED: 'Dispatched',
@@ -11,6 +12,7 @@ const ORDER_STATUS = {
 };
 
 const ALLOWED_STATUS_TRANSITIONS = {
+  [ORDER_STATUS.PENDING_PAYMENT]: [ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.RECEIVED]: [ORDER_STATUS.IN_PREPARATION, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.IN_PREPARATION]: [ORDER_STATUS.DISPATCHED, ORDER_STATUS.CANCELLED],
   [ORDER_STATUS.DISPATCHED]: [ORDER_STATUS.DELIVERED],
@@ -18,7 +20,16 @@ const ALLOWED_STATUS_TRANSITIONS = {
   [ORDER_STATUS.CANCELLED]: [],
 };
 
-const CANCELLABLE_STATUSES = [ORDER_STATUS.RECEIVED, ORDER_STATUS.IN_PREPARATION];
+const CANCELLABLE_STATUSES = [
+  ORDER_STATUS.PENDING_PAYMENT,
+  ORDER_STATUS.RECEIVED,
+  ORDER_STATUS.IN_PREPARATION,
+];
+
+const STOCK_ALLOCATED_STATUSES = [
+  ORDER_STATUS.RECEIVED,
+  ORDER_STATUS.IN_PREPARATION,
+];
 
 const IDEMPOTENCY_CONSTRAINT = 'unique_idempotency_key_per_client';
 
@@ -65,12 +76,12 @@ class OrderService {
     return this.orderRepository.create(orderData);
   }
 
-  async getAllOrders() {
-    return this.orderRepository.findAll();
+  async getAllOrders(options = {}) {
+    return this.orderRepository.findAll(options);
   }
 
-  async getOrderById(orderId) {
-    return this.orderRepository.findById(orderId);
+  async getOrderById(orderId, options = {}) {
+    return this.orderRepository.findById(orderId, options);
   }
 
   async updateOrder(orderId, updatedData) {
@@ -120,7 +131,7 @@ class OrderService {
       mergedByProductId.set(productId, accumulated + quantity);
     });
 
-    // Sorted by productId so concurrent checkouts always lock product rows
+    // Sorted by productId so concurrent transactions always lock product rows
     // in the same order, preventing deadlocks.
     return [...mergedByProductId.entries()]
       .sort((a, b) => a[0] - b[0])
@@ -160,15 +171,13 @@ class OrderService {
 
     try {
       const responseBody = await this.connection.transaction(async (transaction) => {
-        const client = await this.clientRepository.findById(clientId);
+        const client = await this.clientRepository.findById(clientId, { transaction });
         if (!client) {
           throw new CustomError(`Client ${clientId} not found.`, 404);
         }
 
         let idempotencyRecord = null;
         if (idempotencyKey) {
-          // Inserted before any product locking so a concurrent request with the same
-          // key blocks on the unique constraint instead of doing wasted work.
           idempotencyRecord = await this.idempotencyKeyRepository.create(
             { key: idempotencyKey, clientId, requestHash },
             { transaction },
@@ -181,7 +190,7 @@ class OrderService {
         for (let i = 0; i < normalizedItems.length; i += 1) {
           const item = normalizedItems[i];
           // eslint-disable-next-line no-await-in-loop
-          const product = await this.productRepository.findByIdForUpdate(item.productId, transaction);
+          const product = await this.productRepository.findById(item.productId, { transaction });
           if (!product) {
             throw new CustomError(`Product ${item.productId} not found.`, 404);
           }
@@ -207,7 +216,7 @@ class OrderService {
         const order = await this.orderRepository.create(
           {
             clientId,
-            status: ORDER_STATUS.RECEIVED,
+            status: ORDER_STATUS.PENDING_PAYMENT,
             orderDate: new Date(),
             total: centsToDecimalString(totalCents),
           },
@@ -229,17 +238,10 @@ class OrderService {
             { transaction },
           );
           createdItems.push(orderItem);
-
-          // eslint-disable-next-line no-await-in-loop
-          await this.productRepository.update(
-            line.product.productId,
-            { quantityInStock: line.product.quantityInStock - line.quantity },
-            { transaction },
-          );
         }
 
         const body = {
-          message: 'Checkout completed.',
+          message: 'Checkout created. Awaiting payment confirmation.',
           order: orderToPlain(order),
           items: createdItems.map(orderItemToPlain),
         };
@@ -271,10 +273,90 @@ class OrderService {
     }
   }
 
+  async processPayment(orderId, action) {
+    if (action !== 'confirm' && action !== 'deny') {
+      throw new CustomError(`Invalid payment action '${action}'. Expected 'confirm' or 'deny'.`, 400);
+    }
+
+    return this.connection.transaction(async (transaction) => {
+      const order = await this.orderRepository.findById(orderId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!order) {
+        throw new CustomError('Order not found.', 404);
+      }
+
+      if (order.status !== ORDER_STATUS.PENDING_PAYMENT) {
+        throw new CustomError(
+          `Order in status '${order.status}' cannot process payment. Payment is only allowed when status is '${ORDER_STATUS.PENDING_PAYMENT}'.`,
+          409,
+        );
+      }
+
+      if (action === 'deny') {
+        const deniedOrder = await this.orderRepository.update(
+          orderId,
+          { status: ORDER_STATUS.CANCELLED },
+          { transaction },
+        );
+        return {
+          paymentStatus: 'denied',
+          order: orderToPlain(deniedOrder),
+          debitedItems: [],
+        };
+      }
+
+      const orderItems = await this.orderItemRepository.findByOrderId(orderId, { transaction });
+      const quantityByProductId = new Map();
+      orderItems.forEach((item) => {
+        const accumulated = quantityByProductId.get(item.productId) ?? 0;
+        quantityByProductId.set(item.productId, accumulated + item.quantity);
+      });
+
+      const sortedProductIds = [...quantityByProductId.keys()].sort((a, b) => a - b);
+      const debitedItems = [];
+
+      for (let i = 0; i < sortedProductIds.length; i += 1) {
+        const productId = sortedProductIds[i];
+        const quantity = quantityByProductId.get(productId);
+        // eslint-disable-next-line no-await-in-loop
+        const product = await this.productRepository.findByIdForUpdate(productId, transaction);
+        if (!product) {
+          throw new CustomError(`Product ${productId} not found.`, 404);
+        }
+        if (product.quantityInStock < quantity) {
+          throw new CustomError(
+            `Insufficient stock for product ${productId} (requested ${quantity}, available ${product.quantityInStock}).`,
+            409,
+          );
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        await this.productRepository.update(
+          productId,
+          { quantityInStock: product.quantityInStock - quantity },
+          { transaction },
+        );
+        debitedItems.push({ productId, quantityDebited: quantity });
+      }
+
+      const confirmedOrder = await this.orderRepository.update(
+        orderId,
+        { status: ORDER_STATUS.RECEIVED },
+        { transaction },
+      );
+
+      return {
+        paymentStatus: 'confirmed',
+        order: orderToPlain(confirmedOrder),
+        debitedItems,
+      };
+    });
+  }
+
   async changeOrderStatus(orderId, targetStatus) {
     if (targetStatus === ORDER_STATUS.CANCELLED) {
-      // Cancellation has side effects (stock restoration), so it always goes
-      // through the transactional cancellation flow.
       const cancellation = await this.cancelOrder(orderId);
       return { order: cancellation.order, restoredItems: cancellation.restoredItems };
     }
@@ -317,34 +399,36 @@ class OrderService {
         );
       }
 
-      const orderItems = await this.orderItemRepository.findByOrderId(orderId, { transaction });
-
-      const quantityByProductId = new Map();
-      orderItems.forEach((item) => {
-        const accumulated = quantityByProductId.get(item.productId) ?? 0;
-        quantityByProductId.set(item.productId, accumulated + item.quantity);
-      });
-
       const restoredItems = [];
-      const sortedProductIds = [...quantityByProductId.keys()].sort((a, b) => a - b);
 
-      for (let i = 0; i < sortedProductIds.length; i += 1) {
-        const productId = sortedProductIds[i];
-        const quantityToRestore = quantityByProductId.get(productId);
-        // eslint-disable-next-line no-await-in-loop
-        const product = await this.productRepository.findByIdForUpdate(productId, transaction);
-        if (product) {
+      if (STOCK_ALLOCATED_STATUSES.includes(order.status)) {
+        const orderItems = await this.orderItemRepository.findByOrderId(orderId, { transaction });
+
+        const quantityByProductId = new Map();
+        orderItems.forEach((item) => {
+          const accumulated = quantityByProductId.get(item.productId) ?? 0;
+          quantityByProductId.set(item.productId, accumulated + item.quantity);
+        });
+
+        const sortedProductIds = [...quantityByProductId.keys()].sort((a, b) => a - b);
+
+        for (let i = 0; i < sortedProductIds.length; i += 1) {
+          const productId = sortedProductIds[i];
+          const quantityToRestore = quantityByProductId.get(productId);
           // eslint-disable-next-line no-await-in-loop
-          await this.productRepository.update(
-            productId,
-            { quantityInStock: product.quantityInStock + quantityToRestore },
-            { transaction },
-          );
-          restoredItems.push({ productId, quantityRestored: quantityToRestore });
+          const product = await this.productRepository.findByIdForUpdate(productId, transaction);
+          if (product) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.productRepository.update(
+              productId,
+              { quantityInStock: product.quantityInStock + quantityToRestore },
+              { transaction },
+            );
+            restoredItems.push({ productId, quantityRestored: quantityToRestore });
+          }
         }
       }
 
-      // The order total is intentionally preserved for financial/audit history.
       const cancelledOrder = await this.orderRepository.update(
         orderId,
         { status: ORDER_STATUS.CANCELLED },
@@ -390,4 +474,9 @@ class OrderService {
 }
 
 export default OrderService;
-export { ORDER_STATUS, ALLOWED_STATUS_TRANSITIONS, CANCELLABLE_STATUSES };
+export {
+  ORDER_STATUS,
+  ALLOWED_STATUS_TRANSITIONS,
+  CANCELLABLE_STATUSES,
+  STOCK_ALLOCATED_STATUSES,
+};

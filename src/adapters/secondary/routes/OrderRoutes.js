@@ -1,5 +1,5 @@
-// routes/orderRoutes.js
 import express from 'express';
+import { requireAdmin } from '../../../utils/middlewareAuth.js';
 import Order from '../../../entities/models/Order.js';
 import OrderItem from '../../../entities/models/OrderItem.js';
 import Product from '../../../entities/models/Product.js';
@@ -30,18 +30,19 @@ const orderService = new OrderService(orderRepository, {
   idempotencyKeyRepository,
   connection,
 });
-const orderController = new OrderController(orderService);
+const orderController = new OrderController(orderService, clientRepository);
 
 orderRouter.post('/', OrderValidation.createOrderValidation, orderController.createOrder.bind(orderController));
 orderRouter.post('/checkout', OrderValidation.checkoutOrderSchema, orderController.checkout.bind(orderController));
-orderRouter.get('/', orderController.getAllOrders.bind(orderController));
-orderRouter.get('/:orderId', OrderValidation.getOrderByIdSchema, orderController.getOrderById.bind(orderController));
-orderRouter.get('/:orderId/summary', OrderValidation.getOrderByIdSchema, orderController.getOrderSummary.bind(orderController));
-orderRouter.patch('/:orderId/status', OrderValidation.getOrderByIdSchema, OrderValidation.changeOrderStatusSchema, orderController.changeOrderStatus.bind(orderController));
-orderRouter.post('/:orderId/cancel', OrderValidation.getOrderByIdSchema, orderController.cancelOrder.bind(orderController));
-orderRouter.put('/:orderId', OrderValidation.updateOrderSchema, orderController.updateOrder.bind(orderController));
-orderRouter.put('/update-status/:orderId', OrderValidation.updateOrderStatusSchema, orderController.updateOrder.bind(orderController));
-orderRouter.delete('/:orderId', OrderValidation.deleteOrderSchema, orderController.deleteOrder.bind(orderController));
 orderRouter.post('/filters', OrderValidation.getOrdersByFiltersSchema, orderController.getOrdersByFilters.bind(orderController));
+orderRouter.get('/', orderController.getAllOrders.bind(orderController));
+orderRouter.get('/:orderId/summary', OrderValidation.getOrderByIdSchema, orderController.getOrderSummary.bind(orderController));
+orderRouter.post('/:orderId/payment', OrderValidation.getOrderByIdSchema, OrderValidation.paymentOrderSchema, orderController.processPayment.bind(orderController));
+orderRouter.patch('/:orderId/status', requireAdmin, OrderValidation.getOrderByIdSchema, OrderValidation.changeOrderStatusSchema, orderController.changeOrderStatus.bind(orderController));
+orderRouter.post('/:orderId/cancel', OrderValidation.getOrderByIdSchema, orderController.cancelOrder.bind(orderController));
+orderRouter.put('/update-status/:orderId', requireAdmin, OrderValidation.updateOrderStatusSchema, orderController.updateOrder.bind(orderController));
+orderRouter.get('/:orderId', OrderValidation.getOrderByIdSchema, orderController.getOrderById.bind(orderController));
+orderRouter.put('/:orderId', requireAdmin, OrderValidation.updateOrderSchema, orderController.updateOrder.bind(orderController));
+orderRouter.delete('/:orderId', requireAdmin, OrderValidation.deleteOrderSchema, orderController.deleteOrder.bind(orderController));
 
 export default orderRouter;

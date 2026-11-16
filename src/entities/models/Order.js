@@ -22,7 +22,7 @@ class Order extends Model {
           },
         },
         status: {
-          type: DataTypes.ENUM('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled'),
+          type: DataTypes.ENUM('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled'),
           allowNull: false,
         },
         orderDate: {
@@ -53,7 +53,8 @@ class Order extends Model {
 
   toDict() {
     return {
-      id: this.id,
+      orderId: this.orderId,
+      clientId: this.clientId,
       status: this.status,
       orderDate: this.orderDate,
       total: this.total,

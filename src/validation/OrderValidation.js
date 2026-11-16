@@ -5,7 +5,9 @@ class OrderValidation {
   static createOrderValidation(req, res, next) {
     const schema = Joi.object().keys({
       clientId: Joi.number().integer().required(),
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered').required(),
+      status: Joi.string()
+        .valid('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered')
+        .required(),
       orderDate: Joi.date().required(),
       total: Joi.number().precision(2).required(),
     });
@@ -22,7 +24,7 @@ class OrderValidation {
   static updateOrderSchema(req, res, next) {
     const schema = Joi.object().keys({
       clientId: Joi.number().integer(),
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered'),
+      status: Joi.string().valid('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered'),
       orderDate: Joi.date(),
       total: Joi.number().precision(2),
     });
@@ -31,7 +33,7 @@ class OrderValidation {
 
   static updateOrderStatusSchema(req, res, next) {
     const schema = Joi.object().keys({
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered').required(),
+      status: Joi.string().valid('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered').required(),
     });
     validateSchema('body', schema)(req, res, next);
   }
@@ -49,9 +51,18 @@ class OrderValidation {
     validateSchema('body', schema)(req, res, next);
   }
 
+  static paymentOrderSchema(req, res, next) {
+    const schema = Joi.object().keys({
+      action: Joi.string().valid('confirm', 'deny').required(),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
   static changeOrderStatusSchema(req, res, next) {
     const schema = Joi.object().keys({
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled').required(),
+      status: Joi.string()
+        .valid('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled')
+        .required(),
     });
     validateSchema('body', schema)(req, res, next);
   }
@@ -66,7 +77,9 @@ class OrderValidation {
   static getOrdersByFiltersSchema(req, res, next) {
     const schema = Joi.object({
       clientId: Joi.number().integer().positive(),
-      status: Joi.string().valid('Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled').allow(''),
+      status: Joi.string()
+        .valid('Pending Payment', 'Received', 'In Preparation', 'Dispatched', 'Delivered', 'Cancelled')
+        .allow(''),
       startDate: Joi.date(),
       endDate: Joi.date(),
     });

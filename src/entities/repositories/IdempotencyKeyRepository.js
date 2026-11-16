@@ -17,6 +17,7 @@ class IdempotencyKeyRepository {
     return this.model.create(idempotencyData, options);
   }
 
+  // eslint-disable-next-line class-methods-use-this
   async update(record, idempotencyData, options = {}) {
     return record.update(idempotencyData, options);
   }
