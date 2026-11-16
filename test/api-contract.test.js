@@ -3,23 +3,13 @@
  * and assert the HTTP contracts that do not require a database connection
  * (auth middleware and Joi validation run before any query).
  *
- * Requires src/config/database.js to exist (gitignored; see docs/order-workflow.md) —
- * the suite is skipped with an explanation when it is missing.
- *
  * Run with: npm run test:contract
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import express from 'express';
 
-const dbConfigPath = fileURLToPath(new URL('../src/config/database.js', import.meta.url));
-const skipReason = existsSync(dbConfigPath)
-  ? false
-  : 'src/config/database.js is missing (gitignored) — create it as documented in docs/order-workflow.md';
-
-describe('API route contracts (no database required)', { skip: skipReason }, () => {
+describe('API route contracts (no database required)', () => {
   let server;
   let baseUrl;
 
@@ -54,7 +44,7 @@ describe('API route contracts (no database required)', { skip: skipReason }, () 
     return { status: response.status, body: await response.json() };
   }
 
-  it('rejects unauthenticated access to protected order routes', async () => {
+  it('rejects unauthenticated access to protected order and report routes', async () => {
     const list = await call('/orders');
     assert.equal(list.status, 400);
     assert.equal(list.body.message, 'Missing authentication token.');
@@ -65,6 +55,10 @@ describe('API route contracts (no database required)', { skip: skipReason }, () 
     });
     assert.equal(checkout.status, 400);
     assert.equal(checkout.body.message, 'Missing authentication token.');
+
+    const reports = await call('/reports');
+    assert.equal(reports.status, 400);
+    assert.equal(reports.body.message, 'Missing authentication token.');
   });
 
   it('rejects an invalid token with 401', async () => {
@@ -86,14 +80,23 @@ describe('API route contracts (no database required)', { skip: skipReason }, () 
     assert.match(response.body.error, /email|password/i);
   });
 
-  it('validates the signup payload contract', async () => {
-    const response = await call('/signin', {
+  it('validates the signup payload contract and blocks public Admin creation', async () => {
+    const invalidType = await call('/signin', {
       method: 'POST',
       body: { name: 'Someone', email: 'someone@example.com', password: '12345678', type: 'Owner' },
     });
 
-    assert.equal(response.status, 400);
-    assert.equal(response.body.success, false);
-    assert.match(response.body.error, /type/i);
+    assert.equal(invalidType.status, 400);
+    assert.equal(invalidType.body.success, false);
+    assert.match(invalidType.body.error, /type/i);
+
+    const adminAttempt = await call('/signin', {
+      method: 'POST',
+      body: { name: 'Attacker', email: 'attacker@example.com', password: '12345678', type: 'Admin' },
+    });
+
+    assert.equal(adminAttempt.status, 400);
+    assert.equal(adminAttempt.body.success, false);
+    assert.match(adminAttempt.body.error, /type/i);
   });
 });
