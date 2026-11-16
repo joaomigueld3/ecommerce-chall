@@ -1,13 +1,15 @@
-version: "3.1"
-
 services:
-
   db:
     image: postgres:14.2-alpine
     restart: always
     environment:
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: sqldocker
-      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PASSWORD_LOCAL:-123456}
+      POSTGRES_DB: ${DATABASE_LOCAL:-sqldocker}
+      POSTGRES_USER: ${USERNAME_DB_LOCAL:-postgres}
     ports:
-      - "5432:5432"
+      - "${PORT_DB_LOCAL:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
