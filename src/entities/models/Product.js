@@ -19,6 +19,11 @@ class Product extends Model {
         description: {
           type: DataTypes.TEXT,
         },
+        category: {
+          type: DataTypes.STRING(80),
+          allowNull: false,
+          defaultValue: 'General',
+        },
         price: {
           type: DataTypes.DECIMAL(10, 2),
           allowNull: false,
@@ -48,6 +53,7 @@ class Product extends Model {
       productId: this.productId,
       productName: this.productName,
       description: this.description,
+      category: this.category,
       price: this.price,
       quantityInStock: this.quantityInStock,
     };

@@ -11,6 +11,10 @@ class ProductService {
     return this.productRepository.findById(productId);
   }
 
+  async getProductByIdForUpdate(productId, transaction) {
+    return this.productRepository.findByIdForUpdate(productId, transaction);
+  }
+
   async createProduct(productData) {
     return this.productRepository.create(productData);
   }
@@ -27,8 +31,8 @@ class ProductService {
     return this.productRepository.findByFilters(filters);
   }
 
-  async updateProductQuantity(productId, quantityChange) {
-    const product = await this.productRepository.findById(productId);
+  async updateProductQuantity(productId, quantityChange, options = {}) {
+    const product = await this.productRepository.findById(productId, options);
 
     if (!product) {
       throw new Error('Product not found.');
@@ -36,7 +40,7 @@ class ProductService {
 
     const newQuantity = product.quantityInStock + quantityChange;
 
-    await this.productRepository.update(productId, { quantityInStock: newQuantity });
+    await this.productRepository.update(productId, { quantityInStock: newQuantity }, options);
   }
 }
 

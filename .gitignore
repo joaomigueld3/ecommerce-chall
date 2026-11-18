@@ -39,6 +39,7 @@ bower_components
 build/Release
 
 uploads/
+storage/
 
 # Dependency directories
 node_modules/
@@ -134,3 +135,10 @@ dist
 .yarn/install-state.gz
 .pnp.*
 /uploads/
+
+# Local metadata
+*Zone.Identifier*
+instructions*.md
+prompt*.md
+
+

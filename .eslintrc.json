@@ -26,7 +26,8 @@
             {
               "js": "always", 
               "jsx": "always",
-              "json": "always"
+              "json": "always",
+              "cjs": "always"
             }
           ]
     }

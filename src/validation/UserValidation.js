@@ -4,10 +4,21 @@ import validateSchema from '../utils/validationUtils.js';
 class UserValidation {
   static createUserValidation(req, res, next) {
     const schema = Joi.object().keys({
-      name: Joi.string().required(),
-      email: Joi.string().email().required(),
+      name: Joi.string().trim().required(),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
+      password: Joi.string().min(8).required(),
+      type: Joi.string().valid('Client').default('Client'),
+    });
+    validateSchema('body', schema)(req, res, next);
+  }
+
+  static createAdminUserValidation(req, res, next) {
+    const schema = Joi.object().keys({
+      name: Joi.string().trim().required(),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
       password: Joi.string().min(8).required(),
       type: Joi.string().valid('Admin', 'Client').required(),
+      confirmed: Joi.boolean(),
     });
     validateSchema('body', schema)(req, res, next);
   }
@@ -21,16 +32,18 @@ class UserValidation {
 
   static updateUserByIdSchema(req, res, next) {
     const schema = Joi.object({
-      name: Joi.string(),
-      email: Joi.string().email(),
-    });
+      name: Joi.string().trim(),
+      email: Joi.string().email({ tlds: { allow: false } }),
+      type: Joi.string().valid('Admin', 'Client'),
+      confirmed: Joi.boolean(),
+    }).min(1);
     validateSchema('body', schema)(req, res, next);
   }
 
   static loginOrchangePassSchema(req, res, next) {
     const schema = Joi.object({
-      email: Joi.string().email(),
-      password: Joi.string().min(8),
+      email: Joi.string().email({ tlds: { allow: false } }).required(),
+      password: Joi.string().min(8).required(),
     });
     validateSchema('body', schema)(req, res, next);
   }
@@ -45,7 +58,7 @@ class UserValidation {
   static getUsersByFiltersSchema(req, res, next) {
     const schema = Joi.object({
       name: Joi.string().allow(''),
-      email: Joi.string().email().allow(''),
+      email: Joi.string().email({ tlds: { allow: false } }).allow(''),
       type: Joi.string().valid('Admin', 'Client').allow(''),
     });
     validateSchema('body', schema)(req, res, next);

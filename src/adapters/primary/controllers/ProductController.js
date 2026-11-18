@@ -1,6 +1,55 @@
 import { Op } from 'sequelize';
 import { errorHandlerCustom, errorHandler } from '../../../utils/errorHandler.js';
 
+function parseCategories(rawCategories, rawCategory) {
+  let list = [];
+  if (Array.isArray(rawCategories)) {
+    list = rawCategories;
+  } else if (typeof rawCategories === 'string' && rawCategories.trim()) {
+    list = rawCategories.split(',');
+  }
+  if (typeof rawCategory === 'string' && rawCategory.trim()) {
+    list.push(...rawCategory.split(','));
+  }
+  return [...new Set(list.map((c) => c.trim()).filter(Boolean))];
+}
+
+function buildProductFilterOptions(filters) {
+  const filterOptions = {};
+
+  if (filters.productName) {
+    filterOptions.productName = { [Op.iLike]: `%${filters.productName}%` };
+  }
+  if (filters.description) {
+    filterOptions.description = { [Op.iLike]: `%${filters.description}%` };
+  }
+
+  const categories = parseCategories(filters.categories, filters.category);
+  if (categories.length === 1) {
+    filterOptions.category = { [Op.iLike]: categories[0] };
+  } else if (categories.length > 1) {
+    filterOptions.category = {
+      [Op.or]: categories.map((cat) => ({ [Op.iLike]: cat })),
+    };
+  }
+
+  if (filters.minPrice !== undefined && filters.minPrice !== '') {
+    filterOptions.price = { [Op.gte]: parseFloat(filters.minPrice) };
+  }
+  if (filters.maxPrice !== undefined && filters.maxPrice !== '') {
+    filterOptions.price = { ...filterOptions.price, [Op.lte]: parseFloat(filters.maxPrice) };
+  }
+
+  if (filters.available !== undefined && filters.available !== '') {
+    const isAvailable = filters.available === true || filters.available === 'true';
+    filterOptions.quantityInStock = isAvailable ? { [Op.gt]: 0 } : 0;
+  } else if (filters.quantityInStock !== undefined && filters.quantityInStock !== '') {
+    filterOptions.quantityInStock = parseInt(filters.quantityInStock, 10);
+  }
+
+  return filterOptions;
+}
+
 class ProductController {
   constructor(productService) {
     this.productService = productService;
@@ -8,7 +57,11 @@ class ProductController {
 
   async getAllProducts(req, res) {
     try {
-      const products = await this.productService.getAllProducts();
+      const filterOptions = buildProductFilterOptions(req.query);
+      const products = Object.keys(filterOptions).length > 0
+        ? await this.productService.getProductsByFilters(filterOptions)
+        : await this.productService.getAllProducts();
+
       return res.status(200).json(products);
     } catch (e) {
       return errorHandler(e, res);
@@ -66,25 +119,7 @@ class ProductController {
 
   async getProductsByFilters(req, res) {
     try {
-      const filters = req.body;
-
-      const filterOptions = {};
-      if (filters.productName) {
-        filterOptions.productName = { [Op.iLike]: `%${filters.productName}%` };
-      }
-      if (filters.description) {
-        filterOptions.description = { [Op.iLike]: `%${filters.description}%` };
-      }
-      if (filters.minPrice) {
-        filterOptions.price = { [Op.gte]: parseFloat(filters.minPrice) };
-      }
-      if (filters.maxPrice) {
-        filterOptions.price = { ...filterOptions.price, [Op.lte]: parseFloat(filters.maxPrice) };
-      }
-      if (filters.quantityInStock) {
-        filterOptions.quantityInStock = parseInt(filters.quantityInStock, 10);
-      }
-
+      const filterOptions = buildProductFilterOptions(req.body);
       const filteredProducts = await this.productService.getProductsByFilters(filterOptions);
       if (filteredProducts.length < 1) return errorHandlerCustom(res, 'Products not found', 404);
 

@@ -28,7 +28,8 @@ class UserService {
       name: user.name,
       email: user.email,
       password: hashedPassword,
-      type: user.type,
+      type: user.type || 'Client',
+      confirmed: Boolean(user.confirmed),
     });
   }
 

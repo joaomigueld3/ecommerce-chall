@@ -5,8 +5,17 @@ class ClientRepository {
     this.client = client;
   }
 
-  async findById(clientId) {
-    return this.client.findByPk(clientId);
+  async findById(clientId, options = {}) {
+    return this.client.findByPk(clientId, options);
+  }
+
+  async findByUserId(userId, options = {}) {
+    return this.client.findOne({
+      where: {
+        userId,
+      },
+      ...options,
+    });
   }
 
   async findByContact(contact) {

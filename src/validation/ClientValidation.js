@@ -15,21 +15,23 @@ class ClientValidation {
 
   static createClientSchema(req, res, next) {
     const schema = Joi.object({
-      fullName: Joi.string().required(),
-      contact: Joi.string().required(),
+      userId: Joi.number().integer().positive(),
+      fullName: Joi.string().trim().required(),
+      contact: Joi.string().trim().required(),
       address: Joi.string().allow(''),
-      status: Joi.boolean().required(),
+      status: Joi.boolean().default(true),
     });
     validateSchema('body', schema)(req, res, next);
   }
 
   static updateClientSchema(req, res, next) {
     const schema = Joi.object({
-      fullName: Joi.string(),
-      contact: Joi.string(),
+      userId: Joi.number().integer().positive().allow(null),
+      fullName: Joi.string().trim(),
+      contact: Joi.string().trim(),
       address: Joi.string().allow(''),
       status: Joi.boolean(),
-    });
+    }).min(1);
     validateSchema('body', schema)(req, res, next);
   }
 

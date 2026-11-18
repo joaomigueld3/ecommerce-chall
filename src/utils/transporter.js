@@ -3,15 +3,25 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
 
-const gmailUser = process.env.GMAIL_USER;
-const gmailPass = process.env.GMAIL_PASS;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT) || 587;
+const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS;
 
-const transporter = nodemailer.createTransport({
-  service: 'hotmail',
-  auth: {
-    user: gmailUser,
-    pass: gmailPass,
-  },
-});
+const hasSmtpCredentials = Boolean(smtpHost && smtpUser && smtpPass);
+
+const transporter = hasSmtpCredentials
+  ? nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  })
+  : nodemailer.createTransport({
+    jsonTransport: true,
+  });
 
 export default transporter;

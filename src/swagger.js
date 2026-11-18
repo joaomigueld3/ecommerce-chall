@@ -1,13 +1,13 @@
 import swaggerAutogen from 'swagger-autogen';
 
-const outputFile = './swagger-output.json';
-const routes = ['./adapters/secondary/routes/AllRoutes.js'];
+const outputFile = './src/swagger-output.json';
+const routes = ['./src/adapters/secondary/routes/allRoutes.js'];
 
 const doc = {
   info: {
-    title: 'desafio-loomi',
+    title: 'ecommerce-api',
     version: '1.0.0',
-    description: 'Desafio Loomi - João Descendente',
+    description: 'E-commerce RESTful API Documentation',
   },
   host: 'localhost:9095',
   basePath: '/api',
@@ -17,6 +17,7 @@ const doc = {
       type: 'apiKey',
       name: 'Authorization',
       in: 'header',
+      description: 'Bearer <JWT>',
     },
   },
   security: [
@@ -24,7 +25,6 @@ const doc = {
       Bearer: [],
     },
   ],
-  apis: routes,
 };
 
 swaggerAutogen()(outputFile, routes, doc);
