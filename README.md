@@ -32,6 +32,13 @@ docker compose up -d
 npm run migrate
 npm run seed
 ```
+- **pgAdmin 4 (optional on-demand DB GUI, profile `tools`):**
+  ```sh
+  docker compose --profile tools up -d pgadmin
+  # stop when finished:
+  docker compose stop pgadmin
+  ```
+  Access `http://localhost:5050` (`admin@ecommerce.com` / `admin`; register server with host `db`, port `5432`, database `sqldocker`, user `postgres`, password `123456`).
 Demo accounts created by `npm run seed`:
 - **Admin:** `admin@loomi.dev` / `Admin@1234`
 - **Client:** `client@loomi.dev` / `Client@1234`
