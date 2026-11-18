@@ -1,7 +1,7 @@
 # Ecommerce Platform
 
 ## 📌 Overview
-RESTful API (Node.js / Express / PostgreSQL / Sequelize) and Next.js frontend for **Ecommerce Platform**, providing authentication, user roles, product filtering, simulated payment, order management, and SQL+CSV sales reports.
+RESTful API (Node.js / Express / PostgreSQL / Sequelize) and Next.js frontend for **Ecommerce Platform**, built for small-to-medium online stores and developers looking for a full-stack e-commerce + backoffice reference with authentication, user roles, product filtering, simulated payment, order management, and SQL+CSV sales reports.
 
 ---
 
@@ -40,8 +40,8 @@ npm run seed
   ```
   Access `http://localhost:5050` (`admin@ecommerce.com` / `admin`; register server with host `db`, port `5432`, database `sqldocker`, user `postgres`, password `123456`).
 Demo accounts created by `npm run seed`:
-- **Admin:** `admin@loomi.dev` / `Admin@1234`
-- **Client:** `client@loomi.dev` / `Client@1234`
+- **Admin:** `admin@ecommerce.dev` / `Admin@1234`
+- **Client:** `client@ecommerce.dev` / `Client@1234`
 
 ### 4️⃣ Run Backend & Frontend
 ```sh
@@ -100,3 +100,17 @@ npm run lint
 npm test
 npm run build
 ```
+
+---
+
+## 🗺 Roadmap & Planned Work
+Active development plans and future milestones are tracked in [BACKLOG.md](./BACKLOG.md), including:
+- **P0 — Storefront & API Foundation:** public catalog access, API pagination/sorting, Amazon-inspired navigation/home, and optional full-stack Docker Compose profile.
+- **P1–P2 — Catalog, Social Proof, Inventory & CRM:** hierarchical categories, brands, multi-image/variant products, verified reviews & Q&A, Kardex stock tracking, address book, wallet, and wishlists.
+- **P3–P4 — Checkout, Logistics, RMA & BI:** multi-step checkout, coupons, shipping quotes, order status timeline, returns/refunds, executive analytics dashboard, and multi-type SQL/CSV reports.
+- **Production Deployment:** serverless API adaptation for Vercel + managed PostgreSQL (`bcryptjs`, `DATABASE_URL` SSL, persisted CSV reports).
+
+---
+
+## 📄 License
+Licensed under the [MIT License](./LICENSE).
