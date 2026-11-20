@@ -1,5 +1,20 @@
 import { Op } from 'sequelize';
 import { errorHandler, errorHandlerCustom } from '../../../utils/errorHandler.js';
+import {
+  buildPaginationMeta,
+  parsePaginationAndSort,
+  setPaginationHeaders,
+} from '../../../utils/pagination.js';
+
+const REPORT_SORT_FIELDS = [
+  'reportId',
+  'period',
+  'periodStart',
+  'periodEnd',
+  'totalSales',
+  'productsSold',
+  'createdAt',
+];
 
 function buildReportFilters(filters) {
   const filterOptions = {};
@@ -41,9 +56,33 @@ class SalesReportController {
   async getAllReports(req, res) {
     try {
       const filterOptions = buildReportFilters(req.query);
+      const {
+        isPaginated,
+        page,
+        limit,
+        offset,
+        order,
+      } = parsePaginationAndSort(req.query, {
+        allowedSortFields: REPORT_SORT_FIELDS,
+        defaultSortField: 'reportId',
+        defaultSortOrder: 'DESC',
+        tieBreakerField: 'reportId',
+      });
+
+      if (isPaginated) {
+        const { rows, count } = await this.salesReportService.getReportsPaginated(filterOptions, {
+          order,
+          limit,
+          offset,
+        });
+        const pagination = buildPaginationMeta(count, page, limit);
+        setPaginationHeaders(res, pagination);
+        return res.status(200).json({ allReports: rows, pagination });
+      }
+
       const reports = Object.keys(filterOptions).length > 0
-        ? await this.salesReportService.getReportsByFilters(filterOptions)
-        : await this.salesReportService.getAllReports();
+        ? await this.salesReportService.getReportsByFilters(filterOptions, { order })
+        : await this.salesReportService.getAllReports({ order });
       return res.status(200).json({ allReports: reports });
     } catch (e) {
       return errorHandler(e, res);

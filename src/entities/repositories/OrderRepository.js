@@ -31,12 +31,24 @@ class OrderRepository {
     });
   }
 
-  async findByFilters(filters) {
+  async findByFilters(filters, options = {}) {
     try {
       const orders = await this.orderModel.findAll({
         where: filters,
+        ...options,
       });
       return orders;
+    } catch (e) {
+      throw new Error(e);
+    }
+  }
+
+  async findAndCountByFilters(filters = {}, options = {}) {
+    try {
+      return await this.orderModel.findAndCountAll({
+        where: filters,
+        ...options,
+      });
     } catch (e) {
       throw new Error(e);
     }

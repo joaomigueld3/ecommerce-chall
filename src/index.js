@@ -21,7 +21,10 @@ const corsOrigin = process.env.CORS_ORIGIN
 
 const app = express();
 
-app.use(cors({ origin: corsOrigin }));
+app.use(cors({
+  origin: corsOrigin,
+  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Limit', 'X-Total-Pages', 'Idempotency-Replayed'],
+}));
 app.use(helmet());
 app.use(express.json());
 app.use(morgan('dev'));
