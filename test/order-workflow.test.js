@@ -26,6 +26,18 @@ import Order from '../src/entities/models/Order.js';
 import OrderItem from '../src/entities/models/OrderItem.js';
 import IdempotencyKey from '../src/entities/models/IdempotencyKey.js';
 import SalesReport from '../src/entities/models/SalesReport.js';
+import Category from '../src/entities/models/Category.js';
+import Brand from '../src/entities/models/Brand.js';
+import ProductImage from '../src/entities/models/ProductImage.js';
+import ProductVariant from '../src/entities/models/ProductVariant.js';
+import ProductReview from '../src/entities/models/ProductReview.js';
+import ProductQuestion from '../src/entities/models/ProductQuestion.js';
+import StockMovement from '../src/entities/models/StockMovement.js';
+import StoreSetting from '../src/entities/models/StoreSetting.js';
+import ClientAddress from '../src/entities/models/ClientAddress.js';
+import SavedPaymentMethod from '../src/entities/models/SavedPaymentMethod.js';
+import Wishlist from '../src/entities/models/Wishlist.js';
+import WishlistItem from '../src/entities/models/WishlistItem.js';
 
 dotenv.config({ path: '.env' });
 
@@ -98,11 +110,23 @@ describe('order lifecycle, payment, RBAC and reports E2E', () => {
     await connection.authenticate();
 
     await SalesReport.destroy({ where: {} });
+    await WishlistItem.destroy({ where: {} });
+    await Wishlist.destroy({ where: {} });
+    await SavedPaymentMethod.destroy({ where: {} });
+    await ClientAddress.destroy({ where: {} });
+    await StoreSetting.destroy({ where: {} });
+    await StockMovement.destroy({ where: {} });
+    await ProductReview.destroy({ where: {} });
+    await ProductQuestion.destroy({ where: {} });
+    await ProductVariant.destroy({ where: {} });
+    await ProductImage.destroy({ where: {} });
     await IdempotencyKey.destroy({ where: {} });
     await OrderItem.destroy({ where: {} });
     await Order.destroy({ where: {} });
     await Client.destroy({ where: {} });
     await Product.destroy({ where: {} });
+    await Brand.destroy({ where: {} });
+    await Category.destroy({ where: {} });
     await User.destroy({ where: {} });
 
     const admin = await User.create({
@@ -469,5 +493,249 @@ describe('order lifecycle, payment, RBAC and reports E2E', () => {
       authToken: clientToken,
     });
     assert.equal(otherCheckout.status, 403);
+  });
+
+  it('12. serves public catalog, department counts, sorting and pagination headers against PostgreSQL', async () => {
+    // Public catalog listing (no auth token)
+    const publicList = await api('/products', { authToken: null });
+    assert.equal(publicList.status, 200, JSON.stringify(publicList.body));
+    assert.ok(Array.isArray(publicList.body));
+    assert.equal(publicList.body.length, 5);
+
+    // Public single product lookup (no auth token)
+    const publicDetail = await api(`/products/${products.A.productId}`, { authToken: null });
+    assert.equal(publicDetail.status, 200);
+    assert.equal(publicDetail.body.productName, 'WF PRODUCT A');
+
+    // Public department counts via SQL GROUP BY
+    const categoriesRes = await api('/products/categories', { authToken: null });
+    assert.equal(categoriesRes.status, 200, JSON.stringify(categoriesRes.body));
+    assert.deepEqual(categoriesRes.body.categories, [
+      { category: 'Accessories', productCount: 1 },
+      { category: 'Audio', productCount: 1 },
+      { category: 'Electronics', productCount: 2 },
+      { category: 'Peripherals', productCount: 1 },
+    ]);
+
+    // Public paginated + sorted product query
+    const page1 = await api('/products?page=1&limit=2&sortBy=price&sortOrder=asc', { authToken: null });
+    assert.equal(page1.status, 200, JSON.stringify(page1.body));
+    assert.equal(page1.body.items.length, 2);
+    assert.equal(page1.body.items[0].productName, 'WF PRODUCT C'); // 5.00
+    assert.equal(page1.body.items[1].productName, 'WF PRODUCT D'); // 7.25
+    assert.deepEqual(page1.body.pagination, {
+      page: 1,
+      limit: 2,
+      total: 5,
+      totalPages: 3,
+      hasNextPage: true,
+      hasPrevPage: false,
+    });
+    assert.equal(page1.headers.get('x-total-count'), '5');
+    assert.equal(page1.headers.get('x-page'), '1');
+    assert.equal(page1.headers.get('x-limit'), '2');
+    assert.equal(page1.headers.get('x-total-pages'), '3');
+
+    const page3 = await api('/products?page=3&limit=2&sortBy=price&sortOrder=asc', { authToken: null });
+    assert.equal(page3.status, 200);
+    assert.equal(page3.body.items.length, 1);
+    assert.equal(page3.body.items[0].productName, 'WF PRODUCT B'); // 19.99
+    assert.equal(page3.body.pagination.hasNextPage, false);
+    assert.equal(page3.body.pagination.hasPrevPage, true);
+
+    // Paginated orders & clients preserve existing keys while adding pagination metadata
+    const ordersPage = await api('/orders?page=1&limit=2&sortBy=orderId&sortOrder=asc');
+    assert.equal(ordersPage.status, 200);
+    assert.equal(ordersPage.body.allOrders.length, 2);
+    assert.ok(ordersPage.body.pagination.total >= 2);
+    assert.equal(ordersPage.headers.get('x-limit'), '2');
+
+    const clientsPage = await api('/clients?page=1&limit=1');
+    assert.equal(clientsPage.status, 200);
+    assert.equal(clientsPage.body.allClients.length, 1);
+    assert.ok(clientsPage.body.pagination.total >= 2);
+  });
+
+  it('13. executes Phase 2 flows end-to-end (taxonomy, variants, verified reviews, Q&A, Kardex and soft-archive)', async () => {
+    // Taxonomy: Category & Brand
+    const catRes = await api('/categories', {
+      method: 'POST',
+      body: { name: 'Laptops E2E', description: 'Portable workstations' },
+    });
+    assert.equal(catRes.status, 201, JSON.stringify(catRes.body));
+
+    const brandRes = await api('/brands', {
+      method: 'POST',
+      body: { name: 'OmniTech' },
+    });
+    assert.equal(brandRes.status, 201, JSON.stringify(brandRes.body));
+
+    // Product variant + image on product A
+    const varRes = await api(`/products/${products.A.productId}/variants`, {
+      method: 'POST',
+      body: { sku: `VAR-${Date.now()}`, name: '512GB Space Grey', quantityInStock: 10 },
+    });
+    assert.equal(varRes.status, 201, JSON.stringify(varRes.body));
+
+    const detail = await api(`/products/${products.A.productId}`, { authToken: null });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.variants.length, 1);
+
+    // Review by admin user (who has a Delivered order containing product A -> verifiedPurchase=true!)
+    const reviewRes = await api(`/products/${products.A.productId}/reviews`, {
+      method: 'POST',
+      body: { rating: 5, title: 'Solid E2E quality', comment: 'Tested against real PostgreSQL.' },
+    });
+    assert.equal(reviewRes.status, 201, JSON.stringify(reviewRes.body));
+    assert.equal(reviewRes.body.review.verifiedPurchase, true);
+    assert.equal(reviewRes.body.ratingSummary.ratingAvg, 5);
+    assert.equal(reviewRes.body.ratingSummary.ratingCount, 1);
+
+    // Public reviews list + histogram
+    const reviewsList = await api(`/products/${products.A.productId}/reviews`, { authToken: null });
+    assert.equal(reviewsList.status, 200);
+    assert.equal(reviewsList.body.summary.histogram[5], 1);
+
+    // Q&A + Admin answer
+    const qRes = await api(`/products/${products.A.productId}/questions`, {
+      method: 'POST',
+      body: { question: 'Does it support USB-C charging?' },
+    });
+    assert.equal(qRes.status, 201, JSON.stringify(qRes.body));
+    const questionId = qRes.body.question.questionId;
+
+    const ansRes = await api(`/questions/${questionId}/answer`, {
+      method: 'PATCH',
+      body: { answer: 'Yes, up to 100W USB-C PD.' },
+    });
+    assert.equal(ansRes.status, 200, JSON.stringify(ansRes.body));
+    assert.equal(ansRes.body.question.answer, 'Yes, up to 100W USB-C PD.');
+
+    // Kardex Inventory: automatic SALE/CANCELLATION_RESTOCK movements already logged + manual INBOUND
+    const stockBefore = await getStock(products.A.productId);
+    const moveRes = await api('/inventory/movements', {
+      method: 'POST',
+      body: { productId: products.A.productId, type: 'INBOUND', quantity: 15, reason: 'E2E supplier shipment' },
+    });
+    assert.equal(moveRes.status, 201, JSON.stringify(moveRes.body));
+    assert.equal(await getStock(products.A.productId), stockBefore + 15);
+
+    const kardex = await api(`/inventory/movements?productId=${products.A.productId}`);
+    assert.equal(kardex.status, 200);
+    const movementTypes = new Set(kardex.body.movements.map((m) => m.type));
+    assert.ok(movementTypes.has('SALE'));
+    assert.ok(movementTypes.has('CANCELLATION_RESTOCK'));
+    assert.ok(movementTypes.has('INBOUND'));
+
+    // Soft-archive protection when deleting a product that has order/movement history
+    const archiveRes = await api(`/products/${products.A.productId}`, { method: 'DELETE' });
+    assert.equal(archiveRes.status, 200, JSON.stringify(archiveRes.body));
+    assert.equal(archiveRes.body.archived, true);
+    assert.equal(archiveRes.body.deletedProduct.active, false);
+  });
+
+  it('14. executes Phase 3 flows end-to-end (white-label settings, CPF/VAT, international addresses, wallet, wishlist & CRM 360)', async () => {
+    // Public store settings read + Admin update
+    const getSettings = await api('/store-settings', { authToken: null });
+    assert.equal(getSettings.status, 200, JSON.stringify(getSettings.body));
+    assert.equal(getSettings.body.settings.storeName, 'omni.store');
+
+    const putSettings = await api('/store-settings', {
+      method: 'PUT',
+      body: { storeName: 'omni.store', primaryColor: '#0094b6', defaultRegion: 'BR' },
+    });
+    assert.equal(putSettings.status, 200, JSON.stringify(putSettings.body));
+    assert.equal(putSettings.body.settings.defaultRegion, 'BR');
+
+    // Invalid CPF rejected with 400; valid CPF accepted
+    const badCpf = await api(`/clients/${clientId}`, {
+      method: 'PUT',
+      body: { documentType: 'CPF', documentNumber: '111.111.111-11' },
+    });
+    assert.equal(badCpf.status, 400);
+
+    const goodCpf = await api(`/clients/${clientId}`, {
+      method: 'PUT',
+      body: { documentType: 'CPF', documentNumber: '529.982.247-25', country: 'BR', phone: '+55 81 98888-7777' },
+    });
+    assert.equal(goodCpf.status, 200, JSON.stringify(goodCpf.body));
+    assert.equal(goodCpf.body.updatedClient.documentNumber, '52998224725');
+
+    // Multi-region Address Book
+    const addrBr = await api(`/clients/${clientId}/addresses`, {
+      method: 'POST',
+      body: {
+        label: 'Home BR',
+        recipientName: 'Workflow Client',
+        country: 'BR',
+        postalCode: '50030-170',
+        street: 'Rua do Bom Jesus',
+        number: '42',
+        city: 'Recife',
+        state: 'PE',
+      },
+    });
+    assert.equal(addrBr.status, 201, JSON.stringify(addrBr.body));
+    assert.equal(addrBr.body.address.isDefaultShipping, true);
+
+    const addrEu = await api(`/clients/${clientId}/addresses`, {
+      method: 'POST',
+      body: {
+        label: 'Lisbon Office',
+        recipientName: 'Workflow Client',
+        country: 'EU',
+        postalCode: '1100-148',
+        street: 'Av. da Liberdade',
+        number: '110',
+        city: 'Lisbon',
+        state: 'PT',
+        isDefaultShipping: true,
+      },
+    });
+    assert.equal(addrEu.status, 201, JSON.stringify(addrEu.body));
+
+    // Saved Payment Methods (no CVV/PAN stored)
+    const cardRes = await api(`/clients/${clientId}/payment-methods`, {
+      method: 'POST',
+      body: { brand: 'Visa', holderName: 'WORKFLOW CLIENT', last4: '4242', expMonth: 12, expYear: 2029 },
+    });
+    assert.equal(cardRes.status, 201, JSON.stringify(cardRes.body));
+    assert.equal(cardRes.body.paymentMethod.isDefault, true);
+
+    // Wishlist add, read, remove
+    const wishAdd = await api('/wishlists/items', {
+      method: 'POST',
+      body: { productId: products.B.productId },
+    });
+    assert.equal(wishAdd.status, 201, JSON.stringify(wishAdd.body));
+
+    const wishList = await api('/wishlists');
+    assert.equal(wishList.status, 200);
+    assert.equal(wishList.body.items.length, 1);
+
+    const wishDel = await api(`/wishlists/items/${products.B.productId}`, { method: 'DELETE' });
+    assert.equal(wishDel.status, 200);
+
+    // Client 360° Overview & CRM update
+    const crmUpdate = await api(`/clients/${clientId}/crm`, {
+      method: 'PATCH',
+      body: { tier: 'VIP', loyaltyPoints: 500, creditBalance: 75.5, internalNotes: 'Key account' },
+    });
+    assert.equal(crmUpdate.status, 200, JSON.stringify(crmUpdate.body));
+    assert.equal(crmUpdate.body.updatedClient.tier, 'VIP');
+
+    const overview = await api(`/clients/${clientId}/overview`);
+    assert.equal(overview.status, 200, JSON.stringify(overview.body));
+    assert.equal(overview.body.client.tier, 'VIP');
+    assert.equal(overview.body.addresses.length, 2);
+    assert.equal(overview.body.paymentMethods.length, 1);
+    assert.ok(overview.body.crm.totalOrders >= 1);
+    assert.ok(Number(overview.body.crm.ltv) > 0);
+
+    // Safe deactivation when deleting a client that has orders
+    const safeDel = await api(`/clients/${clientId}`, { method: 'DELETE' });
+    assert.equal(safeDel.status, 200, JSON.stringify(safeDel.body));
+    assert.equal(safeDel.body.deactivated, true);
+    assert.equal(safeDel.body.deletedClient.status, false);
   });
 });
