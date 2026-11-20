@@ -11,7 +11,13 @@ export default function RequireAuth({ children }) {
 
   useEffect(() => {
     if (isReady && !isAuthenticated) {
-      router.replace('/login');
+      const currentPath = typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : '';
+      const target = currentPath && currentPath !== '/' && !currentPath.startsWith('/login')
+        ? `/login?next=${encodeURIComponent(currentPath)}`
+        : '/login';
+      router.replace(target);
     }
   }, [isReady, isAuthenticated, router]);
 
