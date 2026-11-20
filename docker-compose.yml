@@ -10,6 +10,54 @@ services:
       - "${PORT_DB_LOCAL:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USERNAME_DB_LOCAL:-postgres} -d ${DATABASE_LOCAL:-sqldocker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: ${PORT:-9095}
+      HOST_LOCAL: db
+      PORT_DB_LOCAL: 5432
+      DATABASE_LOCAL: ${DATABASE_LOCAL:-sqldocker}
+      USERNAME_DB_LOCAL: ${USERNAME_DB_LOCAL:-postgres}
+      PASSWORD_LOCAL: ${PASSWORD_LOCAL:-123456}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      JWT_SECRET_REFRESH: ${JWT_SECRET_REFRESH:-dev-jwt-refresh-secret}
+      EMAIL_SECRET: ${EMAIL_SECRET:-dev-email-secret}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:9095}
+    ports:
+      - "${PORT:-9095}:9095"
+    volumes:
+      - reportsdata:/app/storage
+
+  frontend:
+    profiles: ["full"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:9095/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:9095/api}
+    ports:
+      - "3000:3000"
 
 volumes:
   pgdata:
+  reportsdata:
