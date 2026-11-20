@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import RequireRole from '@/features/auth/RequireRole';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -271,7 +272,7 @@ function ClientAdminContent() {
               <th>Id</th>
               <th>Name</th>
               <th>Contact</th>
-              <th>User</th>
+              <th>Region / Tier</th>
               <th>Status</th>
               <th aria-label="Actions" />
             </tr>
@@ -280,16 +281,26 @@ function ClientAdminContent() {
             {clients.map((client) => (
               <tr key={client.clientId}>
                 <td>#{client.clientId}</td>
-                <td>{client.fullName}</td>
+                <td>
+                  <Link href={`/admin/clients/${client.clientId}`} className="link-strong">
+                    {client.fullName}
+                  </Link>
+                </td>
                 <td>{client.contact}</td>
-                <td>{client.userId ? `#${client.userId}` : '—'}</td>
+                <td>
+                  <span className="badge">{client.country || 'BR'}</span>{' '}
+                  <span className="badge">{client.tier || 'Standard'}</span>
+                </td>
                 <td>{client.status ? 'Active' : 'Inactive'}</td>
                 <td>
                   <div className="actions-row">
-                    <button type="button" className="btn btn-secondary" onClick={() => startEdit(client)}>
+                    <Link href={`/admin/clients/${client.clientId}`} className="btn amz-btn-primary btn-sm">
+                      360° View
+                    </Link>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => startEdit(client)}>
                       Edit
                     </button>
-                    <button type="button" className="btn btn-danger" onClick={() => handleDelete(client)}>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDelete(client)}>
                       Delete
                     </button>
                   </div>
