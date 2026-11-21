@@ -4,6 +4,13 @@ import dotenv from 'dotenv';
 import { Op } from 'sequelize';
 import { errorHandlerCustom, errorHandler } from '../../../utils/errorHandler.js';
 import transporter from '../../../utils/transporter.js';
+import {
+  buildPaginationMeta,
+  parsePaginationAndSort,
+  setPaginationHeaders,
+} from '../../../utils/pagination.js';
+
+const USER_SORT_FIELDS = ['id', 'name', 'email', 'type', 'confirmed', 'createdAt', 'updatedAt'];
 
 dotenv.config({ path: '.env' });
 
@@ -29,9 +36,33 @@ class UserController {
       if (email) filterOptions.email = { [Op.iLike]: `%${email}%` };
       if (type) filterOptions.type = type;
 
+      const {
+        isPaginated,
+        page,
+        limit,
+        offset,
+        order,
+      } = parsePaginationAndSort(req.query, {
+        allowedSortFields: USER_SORT_FIELDS,
+        defaultSortField: 'id',
+        defaultSortOrder: 'DESC',
+        tieBreakerField: 'id',
+      });
+
+      if (isPaginated) {
+        const { rows, count } = await this.userService.getUsersPaginated(filterOptions, {
+          order,
+          limit,
+          offset,
+        });
+        const pagination = buildPaginationMeta(count, page, limit);
+        setPaginationHeaders(res, pagination);
+        return res.status(200).json({ allUsers: rows.map(sanitizeUser), pagination });
+      }
+
       const users = Object.keys(filterOptions).length > 0
-        ? await this.userService.getUsersByFilters(filterOptions)
-        : await this.userService.getAllUsers();
+        ? await this.userService.getUsersByFilters(filterOptions, { order })
+        : await this.userService.getAllUsers({ order });
 
       return res.status(200).json({ allUsers: users.map(sanitizeUser) });
     } catch (e) {

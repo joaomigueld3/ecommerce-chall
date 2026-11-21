@@ -99,4 +99,87 @@ describe('API route contracts (no database required)', () => {
     assert.equal(adminAttempt.body.success, false);
     assert.match(adminAttempt.body.error, /type/i);
   });
+
+  it('allows public product catalog validation while still protecting product mutations with auth', async () => {
+    // Public catalog endpoints reach Joi validation without requiring an auth token
+    const invalidProductId = await call('/products/not-a-number');
+    assert.equal(invalidProductId.status, 400);
+    assert.equal(invalidProductId.body.success, false);
+    assert.match(invalidProductId.body.error, /productId/i);
+
+    const invalidFilter = await call('/products/filters', {
+      method: 'POST',
+      body: { minPrice: -10 },
+    });
+    assert.equal(invalidFilter.status, 400);
+    assert.equal(invalidFilter.body.success, false);
+    assert.match(invalidFilter.body.error, /minPrice/i);
+
+    // Mutations remain strictly authenticated
+    const createAttempt = await call('/products', {
+      method: 'POST',
+      body: { productName: 'Public Hack', category: 'General', price: 10, quantityInStock: 1 },
+    });
+    assert.equal(createAttempt.status, 400);
+    assert.equal(createAttempt.body.message, 'Missing authentication token.');
+
+    const updateAttempt = await call('/products/1', {
+      method: 'PUT',
+      body: { price: 1 },
+    });
+    assert.equal(updateAttempt.status, 400);
+    assert.equal(updateAttempt.body.message, 'Missing authentication token.');
+
+    const deleteAttempt = await call('/products/1', { method: 'DELETE' });
+    assert.equal(deleteAttempt.status, 400);
+    assert.equal(deleteAttempt.body.message, 'Missing authentication token.');
+  });
+
+  it('enforces auth contracts on Phase 2 taxonomy, inventory, reviews and questions endpoints', async () => {
+    const createCategory = await call('/categories', {
+      method: 'POST',
+      body: { name: 'Smart Home' },
+    });
+    assert.equal(createCategory.status, 400);
+    assert.equal(createCategory.body.message, 'Missing authentication token.');
+
+    const createBrand = await call('/brands', {
+      method: 'POST',
+      body: { name: 'Sony' },
+    });
+    assert.equal(createBrand.status, 400);
+    assert.equal(createBrand.body.message, 'Missing authentication token.');
+
+    const inventoryMovements = await call('/inventory/movements');
+    assert.equal(inventoryMovements.status, 400);
+    assert.equal(inventoryMovements.body.message, 'Missing authentication token.');
+
+    const postReview = await call('/products/1/reviews', {
+      method: 'POST',
+      body: { rating: 5, title: 'Great', comment: 'Works well!' },
+    });
+    assert.equal(postReview.status, 400);
+    assert.equal(postReview.body.message, 'Missing authentication token.');
+
+    const adminReviews = await call('/reviews');
+    assert.equal(adminReviews.status, 400);
+    assert.equal(adminReviews.body.message, 'Missing authentication token.');
+  });
+
+  it('enforces auth contracts on Phase 3 store-settings mutations, wishlist and client CRM routes', async () => {
+    const updateSettings = await call('/store-settings', {
+      method: 'PUT',
+      body: { storeName: 'Hacked Store' },
+    });
+    assert.equal(updateSettings.status, 400);
+    assert.equal(updateSettings.body.message, 'Missing authentication token.');
+
+    const wishlist = await call('/wishlists');
+    assert.equal(wishlist.status, 400);
+    assert.equal(wishlist.body.message, 'Missing authentication token.');
+
+    const clientOverview = await call('/clients/1/overview');
+    assert.equal(clientOverview.status, 400);
+    assert.equal(clientOverview.body.message, 'Missing authentication token.');
+  });
 });

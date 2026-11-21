@@ -95,69 +95,6 @@ module.exports = {
     if (clientsToInsert.length > 0) {
       await queryInterface.bulkInsert('table_clients', clientsToInsert);
     }
-
-    const demoProducts = [
-      {
-        product_name: 'Mechanical Keyboard RGB',
-        description: 'Compact 75% mechanical keyboard with hot-swap switches',
-        category: 'Peripherals',
-        price: 299.90,
-        quantity_in_stock: 15,
-      },
-      {
-        product_name: 'Wireless Ergonomic Mouse',
-        description: 'Multi-device Bluetooth mouse with precision optical sensor',
-        category: 'Peripherals',
-        price: 149.50,
-        quantity_in_stock: 25,
-      },
-      {
-        product_name: '27" 4K IPS Monitor',
-        description: 'Ultra HD monitor for development and design workflows',
-        category: 'Electronics',
-        price: 1899.00,
-        quantity_in_stock: 8,
-      },
-      {
-        product_name: 'Noise Cancelling Headphones',
-        description: 'Over-ear wireless headphones with 40h battery life',
-        category: 'Audio',
-        price: 499.00,
-        quantity_in_stock: 12,
-      },
-      {
-        product_name: 'USB-C Hub 8-in-1',
-        description: 'HDMI 4K, Ethernet, SD card reader and 100W PD pass-through',
-        category: 'Accessories',
-        price: 189.00,
-        quantity_in_stock: 20,
-      },
-      {
-        product_name: 'Studio Condenser Microphone',
-        description: 'USB podcast and streaming microphone (limited edition)',
-        category: 'Audio',
-        price: 349.00,
-        quantity_in_stock: 0,
-      },
-    ];
-
-    const existingProducts = await queryInterface.sequelize.query(
-      'SELECT product_name FROM table_products',
-      { type: queryInterface.sequelize.QueryTypes.SELECT },
-    );
-    const existingNames = new Set(existingProducts.map((p) => p.product_name));
-
-    const newProducts = demoProducts
-      .filter((p) => !existingNames.has(p.product_name))
-      .map((p) => ({
-        ...p,
-        created_at: now,
-        updated_at: now,
-      }));
-
-    if (newProducts.length > 0) {
-      await queryInterface.bulkInsert('table_products', newProducts);
-    }
   },
 
   down: async (queryInterface) => {

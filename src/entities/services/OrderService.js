@@ -69,6 +69,7 @@ class OrderService {
     this.productRepository = dependencies.productRepository ?? null;
     this.clientRepository = dependencies.clientRepository ?? null;
     this.idempotencyKeyRepository = dependencies.idempotencyKeyRepository ?? null;
+    this.stockMovementRepository = dependencies.stockMovementRepository ?? null;
     this.connection = dependencies.connection ?? null;
   }
 
@@ -99,8 +100,12 @@ class OrderService {
     return this.orderRepository.delete(orderId);
   }
 
-  async getOrdersByFilters(filters) {
-    return this.orderRepository.findByFilters(filters);
+  async getOrdersByFilters(filters, options = {}) {
+    return this.orderRepository.findByFilters(filters, options);
+  }
+
+  async getOrdersPaginated(filters = {}, options = {}) {
+    return this.orderRepository.findAndCountByFilters(filters, options);
   }
 
   static assertStatusTransition(currentStatus, targetStatus) {
@@ -332,12 +337,36 @@ class OrderService {
           );
         }
 
+        const previousStock = product.quantityInStock;
+        const newStock = previousStock - quantity;
+        const nextSalesCount = (Number(product.salesCount) || 0) + quantity;
+        const productUpdate = product.salesCount !== undefined
+          ? { quantityInStock: newStock, salesCount: nextSalesCount }
+          : { quantityInStock: newStock };
+
         // eslint-disable-next-line no-await-in-loop
         await this.productRepository.update(
           productId,
-          { quantityInStock: product.quantityInStock - quantity },
+          productUpdate,
           { transaction },
         );
+
+        if (this.stockMovementRepository) {
+          // eslint-disable-next-line no-await-in-loop
+          await this.stockMovementRepository.create(
+            {
+              productId,
+              type: 'SALE',
+              quantity: -quantity,
+              previousStock,
+              newStock,
+              reason: `Order #${orderId} payment confirmed`,
+              referenceOrderId: Number(orderId),
+            },
+            { transaction },
+          );
+        }
+
         debitedItems.push({ productId, quantityDebited: quantity });
       }
 
@@ -418,12 +447,36 @@ class OrderService {
           // eslint-disable-next-line no-await-in-loop
           const product = await this.productRepository.findByIdForUpdate(productId, transaction);
           if (product) {
+            const previousStock = product.quantityInStock;
+            const newStock = previousStock + quantityToRestore;
+            const nextSalesCount = Math.max(0, (Number(product.salesCount) || 0) - quantityToRestore);
+            const productUpdate = product.salesCount !== undefined
+              ? { quantityInStock: newStock, salesCount: nextSalesCount }
+              : { quantityInStock: newStock };
+
             // eslint-disable-next-line no-await-in-loop
             await this.productRepository.update(
               productId,
-              { quantityInStock: product.quantityInStock + quantityToRestore },
+              productUpdate,
               { transaction },
             );
+
+            if (this.stockMovementRepository) {
+              // eslint-disable-next-line no-await-in-loop
+              await this.stockMovementRepository.create(
+                {
+                  productId,
+                  type: 'CANCELLATION_RESTOCK',
+                  quantity: quantityToRestore,
+                  previousStock,
+                  newStock,
+                  reason: `Order #${orderId} cancelled`,
+                  referenceOrderId: Number(orderId),
+                },
+                { transaction },
+              );
+            }
+
             restoredItems.push({ productId, quantityRestored: quantityToRestore });
           }
         }

@@ -30,10 +30,19 @@ class SalesReportRepository {
     });
   }
 
-  async findByFilters(filters) {
+  async findByFilters(filters, options = {}) {
     return this.model.findAll({
       where: filters,
       order: [['reportId', 'DESC']],
+      ...options,
+    });
+  }
+
+  async findAndCountByFilters(filters = {}, options = {}) {
+    return this.model.findAndCountAll({
+      where: filters,
+      order: [['reportId', 'DESC']],
+      ...options,
     });
   }
 }

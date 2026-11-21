@@ -15,8 +15,8 @@ class UserRepository {
     });
   }
 
-  async findAll() {
-    return this.user.findAll();
+  async findAll(options = {}) {
+    return this.user.findAll(options);
   }
 
   async create(user) {
@@ -47,12 +47,24 @@ class UserRepository {
     });
   }
 
-  async findByFilters(filters) {
+  async findByFilters(filters, options = {}) {
     try {
       const users = await this.user.findAll({
         where: filters,
+        ...options,
       });
       return users;
+    } catch (e) {
+      throw new Error(e);
+    }
+  }
+
+  async findAndCountByFilters(filters = {}, options = {}) {
+    try {
+      return await this.user.findAndCountAll({
+        where: filters,
+        ...options,
+      });
     } catch (e) {
       throw new Error(e);
     }

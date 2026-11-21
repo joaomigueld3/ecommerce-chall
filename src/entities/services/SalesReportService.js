@@ -172,8 +172,12 @@ class SalesReportService {
     return this.salesReportRepository.findById(reportId);
   }
 
-  async getReportsByFilters(filters) {
-    return this.salesReportRepository.findByFilters(filters);
+  async getReportsByFilters(filters, options = {}) {
+    return this.salesReportRepository.findByFilters(filters, options);
+  }
+
+  async getReportsPaginated(filters = {}, options = {}) {
+    return this.salesReportRepository.findAndCountByFilters(filters, options);
   }
 
   async updateReport(reportId, updatedData) {

@@ -12,7 +12,7 @@
     "seed": "npx sequelize-cli db:seed:all",
     "migrate": "npx sequelize-cli db:migrate",
     "test": "node --test test/",
-    "test:unit": "node --test test/order-service.unit.test.js test/user-service.unit.test.js test/report-service.unit.test.js",
+    "test:unit": "node --test test/order-service.unit.test.js test/user-service.unit.test.js test/report-service.unit.test.js test/pagination.unit.test.js test/phase2-catalog-inventory.unit.test.js test/phase3-crm-whitelabel.unit.test.js",
     "test:contract": "node --test test/api-contract.test.js",
     "test:e2e": "node --test test/order-workflow.test.js"
   },
