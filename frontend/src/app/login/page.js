@@ -5,11 +5,19 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 
+function getSafeNextPath(raw) {
+  if (typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//')) {
+    return raw;
+  }
+  return '/';
+}
+
 function LoginFormContent() {
   const { login, isReady, isAuthenticated } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const confirmed = searchParams.get('confirmed') === '1';
+  const nextPath = getSafeNextPath(searchParams.get('next'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,9 +26,9 @@ function LoginFormContent() {
 
   useEffect(() => {
     if (isReady && isAuthenticated) {
-      router.replace('/products');
+      router.replace(nextPath);
     }
-  }, [isReady, isAuthenticated, router]);
+  }, [isReady, isAuthenticated, nextPath, router]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -28,7 +36,7 @@ function LoginFormContent() {
     setSubmitting(true);
     try {
       await login(email, password);
-      router.push('/products');
+      router.push(nextPath);
     } catch (err) {
       setError(err.message || 'Login failed.');
     } finally {
@@ -38,8 +46,8 @@ function LoginFormContent() {
 
   return (
     <section className="card narrow">
-      <h1>Login</h1>
-      <p className="muted">Use a confirmed user account to sign in.</p>
+      <h1>Sign in</h1>
+      <p className="muted">Use a confirmed user account to continue.</p>
 
       {confirmed && (
         <p className="alert alert-success">Email confirmed! You can now sign in.</p>
@@ -73,7 +81,7 @@ function LoginFormContent() {
         </label>
 
         <div className="actions-row">
-          <button type="submit" className="btn" disabled={submitting}>
+          <button type="submit" className="btn amz-btn-primary" disabled={submitting}>
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
           <Link href="/register" className="btn btn-secondary">
@@ -87,7 +95,7 @@ function LoginFormContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<section className="card narrow"><h1>Login</h1></section>}>
+    <Suspense fallback={<section className="card narrow"><h1>Sign in</h1></section>}>
       <LoginFormContent />
     </Suspense>
   );

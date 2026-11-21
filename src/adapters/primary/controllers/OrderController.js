@@ -1,5 +1,12 @@
 import { Op } from 'sequelize';
 import { errorHandlerCustom, errorHandler } from '../../../utils/errorHandler.js';
+import {
+  buildPaginationMeta,
+  parsePaginationAndSort,
+  setPaginationHeaders,
+} from '../../../utils/pagination.js';
+
+const ORDER_SORT_FIELDS = ['orderId', 'orderDate', 'total', 'status', 'clientId'];
 
 function buildOrderFilters(filters) {
   const filterOptions = {};
@@ -74,9 +81,33 @@ class OrderController {
         filterOptions.clientId = ownClient.clientId;
       }
 
+      const {
+        isPaginated,
+        page,
+        limit,
+        offset,
+        order,
+      } = parsePaginationAndSort(req.query, {
+        allowedSortFields: ORDER_SORT_FIELDS,
+        defaultSortField: 'orderId',
+        defaultSortOrder: 'DESC',
+        tieBreakerField: 'orderId',
+      });
+
+      if (isPaginated) {
+        const { rows, count } = await this.orderService.getOrdersPaginated(filterOptions, {
+          order,
+          limit,
+          offset,
+        });
+        const pagination = buildPaginationMeta(count, page, limit);
+        setPaginationHeaders(res, pagination);
+        return res.status(200).json({ allOrders: rows, pagination });
+      }
+
       const orders = Object.keys(filterOptions).length > 0
-        ? await this.orderService.getOrdersByFilters(filterOptions)
-        : await this.orderService.getAllOrders();
+        ? await this.orderService.getOrdersByFilters(filterOptions, { order })
+        : await this.orderService.getAllOrders({ order });
 
       return res.status(200).json({ allOrders: orders });
     } catch (e) {

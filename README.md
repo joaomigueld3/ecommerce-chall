@@ -3,6 +3,10 @@
 ## 📌 Overview
 RESTful API (Node.js / Express / PostgreSQL / Sequelize) and Next.js frontend for **Ecommerce Platform**, built for small-to-medium online stores and developers looking for a full-stack e-commerce + backoffice reference with authentication, user roles, product filtering, simulated payment, order management, and SQL+CSV sales reports.
 
+- **Architecture (As-Is & To-Be):** `docs/architecture.md`
+- **Order Workflow & Locking Notes:** `docs/order-workflow.md`
+- **Project Backlog & Roadmap:** `BACKLOG.md`
+
 ---
 
 ## 🏗 Tech Stack
@@ -39,6 +43,11 @@ npm run seed
   docker compose stop pgadmin
   ```
   Access `http://localhost:5050` (`admin@ecommerce.com` / `admin`; register server with host `db`, port `5432`, database `sqldocker`, user `postgres`, password `123456`).
+
+- **Optional full-stack Docker demo (profile `full` — starts PostgreSQL, Backend and Frontend together):**
+  ```sh
+  docker compose --profile full up --build
+  ```
 Demo accounts created by `npm run seed`:
 - **Admin:** `admin@ecommerce.dev` / `Admin@1234`
 - **Client:** `client@ecommerce.dev` / `Client@1234`
@@ -58,14 +67,14 @@ cd frontend && npm run dev
 ## 🛠 Implemented Features
 
 ### 🔐 Authentication & RBAC
-- Public routes: `POST /api/login`, `POST /api/signin` (Client signup), `GET /api/confirmation/:token`, `GET|POST /api/refresh-token`.
-- All other `/api/*` routes require JWT authentication.
+- Public routes: `POST /api/login`, `POST /api/signin` (Client signup), `GET /api/confirmation/:token`, `GET|POST /api/refresh-token`, and public catalog reads (`GET /api/products`, `GET /api/products/categories`, `GET /api/products/:productId`, `POST /api/products/filters`).
+- All write/admin/account `/api/*` routes require JWT authentication.
 - **Client role:** browse/filter products, manage own user & client profile, place orders, simulate payment, cancel eligible orders, view own orders.
 - **Admin role:** unrestricted access to users, clients, products, order status updates, and sales reports.
 
-### 📦 Products & Filters
-- Full CRUD (`GET/POST/PUT/DELETE /api/products`) with `category`.
-- Multi-criteria filtering via `GET /api/products` query params or `POST /api/products/filters` (`productName`, `category`/`categories`, `minPrice`, `maxPrice`, `available`).
+### 📦 Products, Departments, Filters, Sorting & Pagination
+- Full CRUD (`GET/POST/PUT/DELETE /api/products`) with `category` and `GET /api/products/categories` department summary.
+- Multi-criteria filtering (`productName`, `category`/`categories`, `minPrice`, `maxPrice`, `available`), sorting (`sortBy`, `sortOrder`) and pagination (`page`, `limit` + `X-Total-Count` headers) across `/products`, `/clients`, `/orders`, `/reports`, and `/users`.
 
 ### 📋 Orders, Simulated Payment & Inventory
 - Atomic idempotent checkout (`POST /api/orders/checkout` with optional `Idempotency-Key`) creating `Pending Payment` orders with server-side pricing.
@@ -77,9 +86,10 @@ cd frontend && npm run dev
 - Full CRUD on `/api/reports` plus CSV download via `GET /api/reports/:reportId/download`.
 
 ### 🖥 Frontend Routes (`frontend/`)
-- `/login`, `/register` (with 1-click portfolio email confirmation), `/confirm-email/[token]`
-- `/products` (multi-filter catalog), `/products/[productId]`
-- `/cart`, `/checkout` (idempotent checkout + simulated payment actions)
+- `/` (Amazon-inspired public storefront homepage with departments, deals and latest arrivals)
+- `/products` (public multi-filter, sortable, paginated catalog), `/products/[productId]` (public detail + Buy Box), `/cart` (guest-friendly cart)
+- `/login` (with `?next=` redirect), `/register` (with 1-click portfolio email confirmation), `/confirm-email/[token]`
+- `/checkout` (idempotent checkout + simulated payment actions)
 - `/orders` (status/date/client filters), `/orders/[orderId]` (payment simulation, cancel, Admin status progression)
 - `/profile` (user info, password change, own Client profile)
 - `/admin/products`, `/admin/clients`, `/admin/users`, `/admin/reports` (RBAC-protected)

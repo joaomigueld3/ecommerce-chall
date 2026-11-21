@@ -14,8 +14,8 @@ class UserService {
     return this.userRepository.findByEmail(email);
   }
 
-  async getAllUsers() {
-    return this.userRepository.findAll();
+  async getAllUsers(options = {}) {
+    return this.userRepository.findAll(options);
   }
 
   async createUser(user) {
@@ -61,8 +61,12 @@ class UserService {
     return this.userRepository.updateByEmail(email, { password: hashedPassword });
   }
 
-  async getUsersByFilters(filters) {
-    return this.userRepository.findByFilters(filters);
+  async getUsersByFilters(filters, options = {}) {
+    return this.userRepository.findByFilters(filters, options);
+  }
+
+  async getUsersPaginated(filters = {}, options = {}) {
+    return this.userRepository.findAndCountByFilters(filters, options);
   }
 }
 

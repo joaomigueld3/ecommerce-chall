@@ -5,9 +5,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const CartContext = createContext(null);
 
 const CART_KEY = 'ecommerce.cart';
+const SAVED_KEY = 'ecommerce.savedItems';
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
+  const [savedItems, setSavedItems] = useState([]);
   const [isReady, setIsReady] = useState(false);
 
   /* eslint-disable react-hooks/set-state-in-effect --
@@ -17,8 +19,10 @@ export function CartProvider({ children }) {
     try {
       const stored = window.localStorage.getItem(CART_KEY);
       if (stored) setItems(JSON.parse(stored));
+      const storedSaved = window.localStorage.getItem(SAVED_KEY);
+      if (storedSaved) setSavedItems(JSON.parse(storedSaved));
     } catch {
-      // corrupted storage: start with an empty cart
+      // corrupted storage: start clean
     }
     setIsReady(true);
   }, []);
@@ -29,6 +33,12 @@ export function CartProvider({ children }) {
       window.localStorage.setItem(CART_KEY, JSON.stringify(items));
     }
   }, [items, isReady]);
+
+  useEffect(() => {
+    if (isReady) {
+      window.localStorage.setItem(SAVED_KEY, JSON.stringify(savedItems));
+    }
+  }, [savedItems, isReady]);
 
   const addItem = useCallback((product, quantity = 1) => {
     setItems((current) => {
@@ -44,6 +54,7 @@ export function CartProvider({ children }) {
           productId: product.productId,
           productName: product.productName,
           price: Number(product.price),
+          imageUrl: product.imageUrl || null,
           quantity,
         },
       ];
@@ -65,6 +76,31 @@ export function CartProvider({ children }) {
     setItems([]);
   }, []);
 
+  const saveForLater = useCallback((productId) => {
+    setItems((current) => {
+      const target = current.find((item) => item.productId === productId);
+      if (!target) return current;
+      setSavedItems((prevSaved) => {
+        if (prevSaved.some((s) => s.productId === productId)) return prevSaved;
+        return [...prevSaved, { ...target, quantity: 1 }];
+      });
+      return current.filter((item) => item.productId !== productId);
+    });
+  }, []);
+
+  const moveToCartFromSaved = useCallback((productId) => {
+    setSavedItems((prevSaved) => {
+      const target = prevSaved.find((item) => item.productId === productId);
+      if (!target) return prevSaved;
+      addItem(target, 1);
+      return prevSaved.filter((item) => item.productId !== productId);
+    });
+  }, [addItem]);
+
+  const removeSavedItem = useCallback((productId) => {
+    setSavedItems((prevSaved) => prevSaved.filter((item) => item.productId !== productId));
+  }, []);
+
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items],
@@ -78,14 +114,30 @@ export function CartProvider({ children }) {
   const value = useMemo(
     () => ({
       items,
+      savedItems,
       addItem,
       removeItem,
       updateQuantity,
       clearCart,
+      saveForLater,
+      moveToCartFromSaved,
+      removeSavedItem,
       totalItems,
       totalPrice,
     }),
-    [items, addItem, removeItem, updateQuantity, clearCart, totalItems, totalPrice],
+    [
+      items,
+      savedItems,
+      addItem,
+      removeItem,
+      updateQuantity,
+      clearCart,
+      saveForLater,
+      moveToCartFromSaved,
+      removeSavedItem,
+      totalItems,
+      totalPrice,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

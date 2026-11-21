@@ -22,6 +22,10 @@ function isClientAllowed(req, userId) {
   if (path === '/products' && method === 'GET') return true;
   if (/^\/products\/\d+$/.test(path) && method === 'GET') return true;
   if (path === '/products/filters' && method === 'POST') return true;
+  if (/^\/products\/\d+\/reviews$/.test(path) && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/products\/\d+\/reviews\/\d+\/helpful$/.test(path) && method === 'POST') return true;
+  if (/^\/products\/\d+\/questions$/.test(path) && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/products\/\d+\/related$/.test(path) && method === 'GET') return true;
 
   if (path === '/change-password' && method === 'PUT') return true;
 
@@ -32,6 +36,15 @@ function isClientAllowed(req, userId) {
 
   if (path === '/clients' && (method === 'GET' || method === 'POST')) return true;
   if (/^\/clients\/\d+$/.test(path) && (method === 'GET' || method === 'PUT')) return true;
+  if (/^\/clients\/\d+\/addresses$/.test(path) && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/clients\/\d+\/addresses\/\d+$/.test(path) && (method === 'PUT' || method === 'DELETE')) return true;
+  if (/^\/clients\/\d+\/payment-methods$/.test(path) && (method === 'GET' || method === 'POST')) return true;
+  if (/^\/clients\/\d+\/payment-methods\/\d+\/default$/.test(path) && method === 'PATCH') return true;
+  if (/^\/clients\/\d+\/payment-methods\/\d+$/.test(path) && method === 'DELETE') return true;
+
+  if (path === '/wishlists' && method === 'GET') return true;
+  if (path === '/wishlists/items' && method === 'POST') return true;
+  if (/^\/wishlists\/items\/\d+$/.test(path) && method === 'DELETE') return true;
 
   if (path === '/orders' && (method === 'GET' || method === 'POST')) return true;
   if (path === '/orders/checkout' && method === 'POST') return true;
@@ -108,5 +121,42 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
+async function optionalAuthenticateToken(req, res, next) {
+  const { authorization } = req.headers;
+  if (!authorization) {
+    return next();
+  }
+
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : authorization;
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = await new Promise((resolve, reject) => {
+      jwt.verify(token, secretKey, (err, payload) => {
+        if (err) reject(err);
+        else resolve(payload);
+      });
+    });
+
+    const verifyUser = await User.findByPk(decoded.id);
+    if (verifyUser) {
+      req.id = verifyUser.id;
+      req.email = verifyUser.email;
+      req.type = verifyUser.type;
+      req.user = {
+        id: verifyUser.id,
+        email: verifyUser.email,
+        type: verifyUser.type,
+      };
+    }
+  } catch {
+    // Public endpoint: ignore invalid/expired optional tokens and proceed as guest
+  }
+
+  return next();
+}
+
 export default authenticateToken;
-export { requireAdmin };
+export { requireAdmin, optionalAuthenticateToken };

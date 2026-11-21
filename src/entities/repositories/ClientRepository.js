@@ -26,8 +26,8 @@ class ClientRepository {
     });
   }
 
-  async findAll() {
-    return this.client.findAll();
+  async findAll(options = {}) {
+    return this.client.findAll(options);
   }
 
   async create(client) {
@@ -65,12 +65,24 @@ class ClientRepository {
     }
   }
 
-  async findByFilters(filters) {
+  async findByFilters(filters, options = {}) {
     try {
       const clients = await this.client.findAll({
         where: filters,
+        ...options,
       });
       return clients;
+    } catch (e) {
+      throw new Error(e);
+    }
+  }
+
+  async findAndCountByFilters(filters = {}, options = {}) {
+    try {
+      return await this.client.findAndCountAll({
+        where: filters,
+        ...options,
+      });
     } catch (e) {
       throw new Error(e);
     }
