@@ -5,8 +5,8 @@ const bcrypt = require('bcrypt');
 module.exports = {
   up: async (queryInterface) => {
     const now = new Date();
-    const adminEmail = 'admin@loomi.dev';
-    const clientEmail = 'client@loomi.dev';
+    const adminEmail = 'admin@ecommerce.dev';
+    const clientEmail = 'client@ecommerce.dev';
 
     const existingUsers = await queryInterface.sequelize.query(
       'SELECT id, email FROM table_users WHERE email IN (:emails)',
@@ -99,7 +99,7 @@ module.exports = {
 
   down: async (queryInterface) => {
     await queryInterface.bulkDelete('table_users', {
-      email: ['admin@loomi.dev', 'client@loomi.dev'],
+      email: ['admin@ecommerce.dev', 'client@ecommerce.dev'],
     });
   },
 };
